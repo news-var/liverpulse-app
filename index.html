@@ -145,22 +145,37 @@ async function placeBet() {
 // УТИЛІТИ
 // ==========================================
 function showError(msg) {
-    if (tg) {
-        tg.showAlert(msg);
-        tg.HapticFeedback.notificationOccurred('error');
-    } else {
+    try {
+        if (tg && typeof tg.showAlert === 'function') {
+            tg.showAlert(msg);
+            if (tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+                tg.HapticFeedback.notificationOccurred('error');
+            }
+        } else {
+            alert(msg);
+        }
+    } catch (e) {
+        console.error('showError failed:', e);
         alert(msg);
     }
 }
 
 function showSuccess(msg) {
-    if (tg) {
-        tg.showAlert(msg);
-        tg.HapticFeedback.notificationOccurred('success');
-    } else {
+    try {
+        if (tg && typeof tg.showAlert === 'function') {
+            tg.showAlert(msg);
+            if (tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+                tg.HapticFeedback.notificationOccurred('success');
+            }
+        } else {
+            alert(msg);
+        }
+    } catch (e) {
+        console.error('showSuccess failed:', e);
         alert(msg);
     }
 }
+
 
 function formatDate(dateStr) {
     const date = new Date(dateStr);
