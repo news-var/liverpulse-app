@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ліверпульс</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            overflow-x: hidden; 
+            -webkit-user-select: none; 
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .loading { animation: pulse 1.5s ease-in-out infinite; }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-gray-50">
+<div id="app"></div>
+
+<script>
+// ==========================================
+// КОНФІГУРАЦІЯ
+// ==========================================
+const CONFIG = {
+    // ВАЖЛИВО: Замініть на ваш Worker URL!
+    API_URL: 'https://broken-tooth-a6f7.liverpulse.workers.dev',
+    USE_TELEGRAM: true
+};
+
+// ==========================================
+// TELEGRAM
+// ==========================================
+const tg = window.Telegram?.WebApp;
+if (tg && CONFIG.USE_TELEGRAM) {
+    tg.ready();
+    tg.expand();
+    tg.enableClosingConfirmation();
+    tg.setHeaderColor('#dc2626');
+    tg.setBackgroundColor('#f9fafb');
+}
+
+// ==========================================
+// СТАН
+// ==========================================
+const state = {
+    user: null,
+    matches: [],
+    myBets: [],
+    leaderboard: [],
+    currentPage: 'matches',
+    loading: true,
+    selectedMatch: null,
+    betSlip: { matchId: 0, type: '', selection: '', odds: 0, stake: 50 }
+};
+
+// ==========================================
+// API
+// ==========================================
+async function apiRequest(endpoint, options = {}) {
+    try {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+
+        if (tg && CONFIG.USE_TELEGRAM) {
+            headers['Authorization'] = `Bearer ${tg.initData}`;
+        }
+
+        const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
+            ...options,
+            headers
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Помилка');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('API Error:', error);
+        showError(error.message);
+        throw error;
+    }
+}
+
+async function loadUser() {
+    state.user = await apiRequest('/api/user');
+}
+
+async function loadMatches() {
+    state.matches = await apiRequest('/api/matches');
+}
+
+async function loadMyBets() {
+    state.myBets = await apiRequest('/api/my-bets');
+}
+
+async function loadLeaderboard() {
+    state.leaderboard = await apiRequest('/api/leaderboard');
+}
+
+async function placeBet() {
+    const { matchId, type, selection, odds, stake } = state.betSlip;
+    
+    if (stake < 10) {
+        showError('Мінімум 10 балів');
+        return;
+    }
+    
+    if (stake > state.user.points) {
+        showError('Недостатньо балів!');
+        return;
+    }
+
+    try {
+        const result = await apiRequest('/api/bet', {
+            method: 'POST',
+            body: JSON.stringify({ matchId, betType: type, selection, odds, stake })
+        });
+
+        state.user.points = result.newBalance;
+        state.selectedMatch = null;
+        state.currentPage = 'bets';
+        
+        await loadMyBets();
+        showSuccess('Ставку прийнято! ✅');
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+        
+        render();
+    } catch (error) {
+        console.error('Bet error:', error);
+    }
+}
+
+// ==========================================
+// УТИЛІТИ
+// ==========================================
+function showError(msg) {
+    if (tg) {
+        tg.showAlert(msg);
+        tg.HapticFeedback.notificationOccurred('error');
+    } else {
+        alert(msg);
+    }
+}
+
+function showSuccess(msg) {
+    if (tg) {
+        tg.showAlert(msg);
+        tg.HapticFeedback.notificationOccurred('success');
+    } else {
+        alert(msg);
+    }
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleString('uk-UA', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// ==========================================
+// РЕНДЕРИНГ
+// ==========================================
+function renderHeader() {
+    return `
+        <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold">⚽ Ліверпульс</h1>
+                    <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm opacity-90">Баланс</p>
+                    <p class="text-2xl font-bold">${state.user?.points || 0}</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderMatches() {
+    if (state.matches.length === 0) {
+        return `
+            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
+                <p class="text-4xl mb-2">📅</p>
+                <p>Поки немає матчів</p>
+                <p class="text-sm">Матчі з'являться автоматично</p>
+            </div>
+        `;
+    }
+
+    return state.matches.map(m => `
+        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+                <div class="text-center flex-1">
+                    <p class="font-bold text-lg">${m.home_team}</p>
+                </div>
+                <div class="px-4">
+                    <p class="text-gray-400">VS</p>
+                </div>
+                <div class="text-center flex-1">
+                    <p class="font-bold text-lg">${m.away_team}</p>
+                </div>
+            </div>
+            
+            <div class="text-center text-sm text-gray-500 mb-3">
+                📅 ${formatDate(m.match_date)}
+            </div>
+
+            ${m.status === 'locked' ? `
+                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm">
+                    🔒 Ставки закриті (матч скоро почнеться)
+                </div>
+            ` : `
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
+                        class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">П1</p>
+                        <p class="font-bold text-green-700">${m.odds_home}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
+                        class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">X</p>
+                        <p class="font-bold text-blue-700">${m.odds_draw}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
+                        class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">П2</p>
+                        <p class="font-bold text-red-700">${m.odds_away}</p>
+                    </button>
+                </div>
+
+                ${m.odds_over25 && m.odds_under25 ? `
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 2.5', ${m.odds_over25})"
+                        class="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">Б 2.5</p>
+                        <p class="font-bold text-purple-700">${m.odds_over25}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, 'Тотал', 'М 2.5', ${m.odds_under25})"
+                        class="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">М 2.5</p>
+                        <p class="font-bold text-orange-700">${m.odds_under25}</p>
+                    </button>
+                </div>
+                ` : ''}
+            `}
+        </div>
+    `).join('');
+}
+
+function renderBets() {
+    if (state.myBets.length === 0) {
+        return `
+            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
+                <p class="text-4xl mb-2">💰</p>
+                <p>У вас немає ставок</p>
+                <p class="text-sm">Зробіть першу!</p>
+            </div>
+        `;
+    }
+
+    return state.myBets.map(b => {
+        const colors = {
+            pending: 'border-blue-500 bg-yellow-50 text-yellow-700',
+            won: 'border-green-500 bg-green-50 text-green-700',
+            lost: 'border-red-500 bg-red-50 text-red-700'
+        };
+        const labels = { pending: 'Очікування', won: 'Виграш ✅', lost: 'Програш ❌' };
+
+        return `
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colors[b.status]}">
+                <div class="flex justify-between mb-2">
+                    <div>
+                        <p class="font-bold">Матч #${b.match_id}</p>
+                        <p class="text-sm text-gray-600">${b.bet_type} - ${b.selection}</p>
+                    </div>
+                    <span class="px-2 py-1 ${colors[b.status]} rounded text-xs font-bold">
+                        ${labels[b.status]}
+                    </span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-sm">
+                    <div><p class="text-gray-500">Ставка</p><p class="font-bold">${b.stake}</p></div>
+                    <div><p class="text-gray-500">Коеф.</p><p class="font-bold">${b.odds}</p></div>
+                    <div><p class="text-gray-500">Виграш</p><p class="font-bold text-green-600">${b.potential_win}</p></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">${formatDate(b.created_at)}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderLeaderboard() {
+    return state.leaderboard.map((p, i) => {
+        const isMe = state.user && p.username === state.user.telegram_username;
+        const colors = ['bg-yellow-400 text-yellow-900', 'bg-gray-300 text-gray-700', 'bg-orange-400 text-orange-900', 'bg-gray-100 text-gray-600'];
+        
+        return `
+            <div class="bg-white rounded-lg shadow p-4 flex items-center gap-4 ${isMe ? 'border-2 border-red-500' : ''}">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[Math.min(i, 3)]}">
+                    ${p.rank}
+                </div>
+                <div class="flex-1">
+                    <p class="font-bold">${p.username}</p>
+                    <p class="text-sm text-gray-600">Успішність: ${p.winRate}%</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-xl text-red-600">${p.points}</p>
+                    <p class="text-xs text-gray-500">балів</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderBetModal() {
+    if (!state.selectedMatch) return '';
+
+    const match = state.matches.find(m => m.id === state.selectedMatch);
+    if (!match) return '';
+
+    return `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeModal(event)">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full" onclick="event.stopPropagation()">
+                <h3 class="text-xl font-bold mb-4">Зробити ставку</h3>
+                
+                <div class="bg-gray-50 rounded p-3 mb-4">
+                    <p class="text-sm text-gray-600">Матч</p>
+                    <p class="font-bold">${match.home_team} vs ${match.away_team}</p>
+                    <p class="text-sm text-gray-600 mt-2">Вибір</p>
+                    <p class="font-bold">${state.betSlip.selection}</p>
+                    <p class="text-sm text-gray-600 mt-2">Коефіцієнт</p>
+                    <p class="font-bold text-lg text-green-600">${state.betSlip.odds}</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Сума ставки (бали)</label>
+                    <input id="stake" type="number" min="10" max="${state.user.points}" value="${state.betSlip.stake}"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2 text-lg"
+                        oninput="updateStake(this.value)">
+                    <div class="flex gap-2 mt-2">
+                        ${[50, 100, 250, 500].map(a => `
+                            <button onclick="setStake(${a})" class="flex-1 bg-gray-100 hover:bg-gray-200 rounded py-1 text-sm active:scale-95">${a}</button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 rounded p-3 mb-4">
+                    <p class="text-sm text-gray-600">Можливий виграш</p>
+                    <p class="text-2xl font-bold text-blue-600" id="win">${(state.betSlip.stake * state.betSlip.odds).toFixed(0)}</p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="state.selectedMatch = null; render()"
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 font-semibold py-3 rounded-lg active:scale-95">
+                        Скасувати
+                    </button>
+                    <button onclick="placeBet()"
+                        class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg active:scale-95">
+                        Поставити
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderNav() {
+    const pages = [
+        { id: 'matches', icon: '📊', label: 'Матчі' },
+        { id: 'bets', icon: '💰', label: 'Ставки' },
+        { id: 'leaderboard', icon: '🏆', label: 'Рейтинг' }
+    ];
+
+    return `
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom">
+            <div class="grid grid-cols-3 gap-2">
+                ${pages.map(p => `
+                    <button onclick="changePage('${p.id}')"
+                        class="flex flex-col items-center py-2 rounded-lg active:scale-95 ${
+                            state.currentPage === p.id ? 'bg-red-50 text-red-600' : 'text-gray-600'
+                        }">
+                        <span class="text-2xl mb-1">${p.icon}</span>
+                        <span class="text-xs font-medium">${p.label}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function render() {
+    const app = document.getElementById('app');
+
+    if (state.loading) {
+        app.innerHTML = `
+            <div class="flex items-center justify-center min-h-screen">
+                <div class="text-center">
+                    <div class="loading text-6xl mb-4">⚽</div>
+                    <p class="text-gray-600">Завантаження...</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let content = '';
+    if (state.currentPage === 'matches') {
+        content = `
+            <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 text-white mb-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm opacity-90">Ваш баланс</p>
+                        <p class="text-3xl font-bold">${state.user.points}</p>
+                    </div>
+                    <div class="text-5xl">🏆</div>
+                </div>
+            </div>
+            <h2 class="text-xl font-bold mb-4">⏰ Майбутні матчі</h2>
+            <div class="space-y-4">${renderMatches()}</div>
+        `;
+    } else if (state.currentPage === 'bets') {
+        content = `<h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2><div class="space-y-4">${renderBets()}</div>`;
+    } else if (state.currentPage === 'leaderboard') {
+        content = `<h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2><div class="space-y-4">${renderLeaderboard()}</div>`;
+    }
+
+    app.innerHTML = `
+        ${renderHeader()}
+        <div class="p-4 pb-24">${content}</div>
+        ${renderNav()}
+        ${renderBetModal()}
+    `;
+}
+
+// ==========================================
+// ГЛОБАЛЬНІ ФУНКЦІЇ
+// ==========================================
+window.changePage = async (page) => {
+    state.currentPage = page;
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+    if (page === 'bets') await loadMyBets();
+    if (page === 'leaderboard') await loadLeaderboard();
+    render();
+};
+
+window.openBet = (matchId, type, selection, odds) => {
+    state.selectedMatch = matchId;
+    state.betSlip = { matchId, type, selection, odds, stake: 50 };
+    if (tg) tg.HapticFeedback.impactOccurred('medium');
+    render();
+};
+
+window.closeModal = (e) => {
+    if (e.target === e.currentTarget) {
+        state.selectedMatch = null;
+        render();
+    }
+};
+
+window.updateStake = (val) => {
+    state.betSlip.stake = parseInt(val) || 0;
+    const win = (state.betSlip.stake * state.betSlip.odds).toFixed(0);
+    document.getElementById('win').textContent = win;
+};
+
+window.setStake = (amt) => {
+    state.betSlip.stake = amt;
+    document.getElementById('stake').value = amt;
+    updateStake(amt);
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+};
+
+// ==========================================
+// ІНІЦІАЛІЗАЦІЯ
+// ==========================================
+async function init() {
+    try {
+        state.loading = true;
+        render();
+
+        await loadUser();
+        await loadMatches();
+        
+        state.loading = false;
+        render();
+
+    } catch (error) {
+        console.error('Init error:', error);
+        state.loading = false;
+        document.getElementById('app').innerHTML = `
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="text-center">
+                    <p class="text-6xl mb-4">❌</p>
+                    <p class="text-xl font-bold mb-2">Помилка</p>
+                    <p class="text-gray-600 mb-4">${error.message}</p>
+                    <button onclick="location.reload()" class="bg-red-600 text-white px-6 py-2 rounded-lg">
+                        Спробувати знову
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+init();
+</script>
+</body>
+</html>
