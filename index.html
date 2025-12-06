@@ -218,7 +218,51 @@ function renderMatches() {
         `;
     }
 
-    return state.matches.map(m => `
+    return state.matches.map(m => {
+        // Завершённый матч – отдельный красный блок
+        if (m.status === 'finished') {
+            return `
+                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-center flex-1">
+                            <p class="font-bold text-lg">${m.home_team}</p>
+                        </div>
+                        <div class="px-4 text-2xl font-bold text-red-700">
+                            ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
+                        </div>
+                        <div class="text-center flex-1">
+                            <p class="font-bold text-lg">${m.away_team}</p>
+                        </div>
+                    </div>
+                    <div class="text-center text-sm text-gray-500 mb-1">
+                        📅 ${formatDate(m.match_date)}
+                    </div>
+                    <div class="text-center text-sm font-semibold text-red-700">
+                        Матч завершено
+                    </div>
+                </div>
+            `;
+        }
+
+        // Для остальных статусов – общая карточка
+        let statusBlock = '';
+        if (m.status === 'locked') {
+            statusBlock = `
+                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm mt-2">
+                    🔒 Ставки закриті (матч скоро почнеться)
+                </div>
+            `;
+        } else if (m.status === 'live') {
+            statusBlock = `
+                <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-sm mt-2">
+                    🟢 Матч триває, ставки закриті
+                </div>
+            `;
+        }
+
+        const canBet = m.status === 'upcoming';
+
+        return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
                 <div class="text-center flex-1">
@@ -236,11 +280,7 @@ function renderMatches() {
                 📅 ${formatDate(m.match_date)}
             </div>
 
-            ${m.status === 'locked' ? `
-                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm">
-                    🔒 Ставки закриті (матч скоро почнеться)
-                </div>
-            ` : `
+            ${canBet ? `
                 <div class="grid grid-cols-3 gap-2">
                     <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
                         class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
@@ -273,9 +313,10 @@ function renderMatches() {
                     </button>
                 </div>
                 ` : ''}
-            `}
+            ` : statusBlock}
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function renderBets() {
@@ -291,34 +332,50 @@ function renderBets() {
 
     return state.myBets.map(b => {
         const colors = {
-            pending: 'border-blue-500 bg-yellow-50 text-yellow-700',
+            pending: 'border-blue-500 bg-blue-50 text-blue-700',
             won: 'border-green-500 bg-green-50 text-green-700',
-            lost: 'border-red-500 bg-red-50 text-red-700'
+            lost: 'border-red-500 bg-red-50 text-red-700',
+            refund: 'border-yellow-500 bg-yellow-50 text-yellow-700'
         };
-        const labels = { pending: 'Очікування', won: 'Виграш ✅', lost: 'Програш ❌' };
+        const labels = {
+            pending: 'Очікування',
+            won: 'Виграш ✅',
+            lost: 'Програш ❌',
+            refund: 'Повернення'
+        };
+
+        const payout =
+            b.status === 'won'
+                ? b.potential_win
+                : b.status === 'refund'
+                ? b.stake
+                : 0;
+
+        const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
+        const label = labels[b.status] || 'Статус';
 
         return `
-            <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colors[b.status]}">
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colorClass}">
                 <div class="flex justify-between mb-2">
                     <div>
                         <p class="font-bold">Матч #${b.match_id}</p>
                         <p class="text-sm text-gray-600">${b.bet_type} - ${b.selection}</p>
                     </div>
-                    <span class="px-2 py-1 ${colors[b.status]} rounded text-xs font-bold">
-                        ${labels[b.status]}
+                    <span class="px-2 py-1 ${colorClass} rounded text-xs font-bold">
+                        ${label}
                     </span>
                 </div>
                 <div class="grid grid-cols-3 gap-2 text-sm">
                     <div><p class="text-gray-500">Ставка</p><p class="font-bold">${b.stake}</p></div>
                     <div><p class="text-gray-500">Коеф.</p><p class="font-bold">${b.odds}</p></div>
-                    <div><p class="text-gray-500">Виграш</p><p class="font-bold text-green-600">${b.potential_win}</p></div>
+                    <div><p class="text-gray-500">Виграш</p><p class="font-bold text-green-600">${payout}</p></div>
                 </div>
                 <p class="text-xs text-gray-400 mt-2">${formatDate(b.created_at)}</p>
             </div>
         `;
     }).join('');
 }
-
+    
 function renderLeaderboard() {
     return state.leaderboard.map((p, i) => {
         const isMe = state.user && p.username === state.user.telegram_username;
