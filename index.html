@@ -31,7 +31,9 @@
 const CONFIG = {
     // ВАЖЛИВО: Замініть на ваш Worker URL!
     API_URL: 'https://liverpulse-worker.liverpulse.workers.dev',
-    USE_TELEGRAM: true
+    USE_TELEGRAM: true,
+    // Базовый URL для логотипов команд (позже сюда подставишь свой домен)
+    LOGO_BASE: 'https://your-domain-or-gh-pages-url/logos'
 };
 
 // ==========================================
@@ -176,7 +178,6 @@ function showSuccess(msg) {
     }
 }
 
-
 function formatDate(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleString('uk-UA', {
@@ -186,6 +187,22 @@ function formatDate(dateStr) {
         minute: '2-digit'
     });
 }
+
+// Логотипы команд
+function teamSlug(name) {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+function getTeamLogo(name) {
+    if (!CONFIG.LOGO_BASE) return null;
+    if (!name) return null;
+    const slug = teamSlug(name);
+    return `${CONFIG.LOGO_BASE}/${slug}.png`;
+}
+
 
 // ==========================================
 // РЕНДЕРИНГ
@@ -219,32 +236,42 @@ function renderMatches() {
     }
 
     return state.matches.map(m => {
-        // Завершённый матч – отдельный красный блок
+        const homeLogo = getTeamLogo(m.home_team);
+        const awayLogo = getTeamLogo(m.away_team);
+
+        // ✅ ЗАВЕРШЁННЫЙ МАТЧ – красный блок + турнир
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="text-center flex-1">
+                        <div class="flex items-center gap-2 flex-1 justify-center">
+                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold text-lg">${m.home_team}</p>
                         </div>
                         <div class="px-4 text-2xl font-bold text-red-700">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
-                        <div class="text-center flex-1">
+                        <div class="flex items-center gap-2 flex-1 justify-center">
+                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold text-lg">${m.away_team}</p>
                         </div>
                     </div>
-                    <div class="text-center text-sm text-gray-500 mb-1">
+                    <div class="text-center text-sm text-gray-500">
                         📅 ${formatDate(m.match_date)}
                     </div>
-                    <div class="text-center text-sm font-semibold text-red-700">
+                    ${m.competition ? `
+                        <div class="text-center text-xs text-gray-400 mt-1">
+                            🏆 ${m.competition}
+                        </div>
+                    ` : ''}
+                    <div class="text-center text-sm font-semibold text-red-700 mt-1">
                         Матч завершено
                     </div>
                 </div>
             `;
         }
 
-        // Для остальных статусов – общая карточка
+        // ✅ Статусный блок для upcoming/locked/live
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
@@ -262,23 +289,31 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
+        // ✅ Карточка для будущих / live / locked матчей
         return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
-                <div class="text-center flex-1">
+                <div class="flex items-center gap-2 flex-1 justify-center">
+                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
                     <p class="font-bold text-lg">${m.home_team}</p>
                 </div>
                 <div class="px-4">
                     <p class="text-gray-400">VS</p>
                 </div>
-                <div class="text-center flex-1">
+                <div class="flex items-center gap-2 flex-1 justify-center">
+                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
                     <p class="font-bold text-lg">${m.away_team}</p>
                 </div>
             </div>
             
-            <div class="text-center text-sm text-gray-500 mb-3">
+            <div class="text-center text-sm text-gray-500">
                 📅 ${formatDate(m.match_date)}
             </div>
+            ${m.competition ? `
+                <div class="text-center text-xs text-gray-400 mt-1 mb-2">
+                    🏆 ${m.competition}
+                </div>
+            ` : `<div class="mt-2"></div>`}
 
             ${canBet ? `
                 <div class="grid grid-cols-3 gap-2">
@@ -318,6 +353,7 @@ function renderMatches() {
         `;
     }).join('');
 }
+
 
 function renderBets() {
     if (state.myBets.length === 0) {
