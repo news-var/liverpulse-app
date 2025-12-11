@@ -436,23 +436,65 @@ function renderBets() {
         const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
         const label = labels[b.status] || 'Статус';
 
+        // ----- НОВОЕ: данные матча -----
+        const match = b.match || null;
+
+        const title = match
+            ? `${match.home_team} – ${match.away_team}`
+            : `Матч #${b.match_id}`;
+
+        const competition = match?.competition || null;
+
+        const matchDateStr = match?.match_date
+            ? formatDate(match.match_date)
+            : '';
+
+        let scoreText = '';
+        if (
+            match &&
+            match.status === 'finished' &&
+            match.home_score != null &&
+            match.away_score != null
+        ) {
+            scoreText = `${match.home_score}:${match.away_score}`;
+        }
+        // --------------------------------
+
         return `
             <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colorClass}">
                 <div class="flex justify-between mb-2">
                     <div>
-                        <p class="font-bold">Матч #${b.match_id}</p>
-                        <p class="text-sm text-gray-600">${b.bet_type} - ${b.selection}</p>
+                        <p class="font-bold">${title}</p>
+                        ${competition ? `
+                            <p class="text-xs text-gray-500">🏆 ${competition}</p>
+                        ` : ''}
+                        ${scoreText ? `
+                            <p class="text-xs text-gray-600">Рахунок: ${scoreText}</p>
+                        ` : ''}
+                        <p class="text-sm text-gray-600 mt-1">${b.bet_type} - ${b.selection}</p>
                     </div>
                     <span class="px-2 py-1 ${colorClass} rounded text-xs font-bold">
                         ${label}
                     </span>
                 </div>
                 <div class="grid grid-cols-3 gap-2 text-sm">
-                    <div><p class="text-gray-500">Ставка</p><p class="font-bold">${b.stake}</p></div>
-                    <div><p class="text-gray-500">Коеф.</p><p class="font-bold">${b.odds}</p></div>
-                    <div><p class="text-gray-500">Виграш</p><p class="font-bold text-green-600">${payout}</p></div>
+                    <div>
+                        <p class="text-gray-500">Ставка</p>
+                        <p class="font-bold">${b.stake}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Коеф.</p>
+                        <p class="font-bold">${b.odds}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Виграш</p>
+                        <p class="font-bold text-green-600">${payout}</p>
+                    </div>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">${formatDate(b.created_at)}</p>
+                <p class="text-xs text-gray-400 mt-2">
+                    Ставка: ${formatDate(b.created_at)}
+                    ${matchDateStr ? ` • Матч: ${matchDateStr}` : ''}
+                </p>
             </div>
         `;
     }).join('');
