@@ -348,7 +348,53 @@ function renderMatches() {
                     </button>
                 </div>
                 ` : ''}
+
+                ${m.odds_over15 && m.odds_under15 ? `
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 1.5', ${m.odds_over15})"
+                        class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">Б 1.5</p>
+                        <p class="font-bold text-indigo-700">${m.odds_over15}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, 'Тотал', 'М 1.5', ${m.odds_under15})"
+                        class="bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">М 1.5</p>
+                        <p class="font-bold text-pink-700">${m.odds_under15}</p>
+                    </button>
+                </div>
+                ` : ''}
+
+                ${m.odds_over35 && m.odds_under35 ? `
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 3.5', ${m.odds_over35})"
+                        class="bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">Б 3.5</p>
+                        <p class="font-bold text-teal-700">${m.odds_over35}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, 'Тотал', 'М 3.5', ${m.odds_under35})"
+                        class="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">М 3.5</p>
+                        <p class="font-bold text-amber-700">${m.odds_under35}</p>
+                    </button>
+                </div>
+                ` : ''}
+
+                ${m.odds_home_minus15 && m.odds_away_plus15 ? `
+               <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="openBet(${m.id}, 'Фора', 'П1 (-1.5)', ${m.odds_home_minus15})"
+                        class="bg-lime-50 hover:bg-lime-100 border border-lime-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">П1 (-1.5)</p>
+                        <p class="font-bold text-lime-700">${m.odds_home_minus15}</p>
+                    </button>
+                    <button onclick="openBet(${m.id}, 'Фора', 'П2 (+1.5)', ${m.odds_away_plus15})"
+                        class="bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded p-2 active:scale-95">
+                        <p class="text-xs text-gray-600">П2 (+1.5)</p>
+                        <p class="font-bold text-cyan-700">${m.odds_away_plus15}</p>
+                    </button>
+                </div>
+                ` : ''}
             ` : statusBlock}
+
         </div>
         `;
     }).join('');
