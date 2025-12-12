@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ліверпульс - Адмін</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+        <h1 class="text-2xl font-bold mb-6">📢 Адмін панель</h1>
+        
+        <div class="mb-6">
+            <label class="block font-bold mb-2">API URL:</label>
+            <input id="apiUrl" type="text" value="https://liverpulse-worker.liverpulse.workers.dev" 
+                class="w-full border px-3 py-2 rounded">
+        </div>
+
+        <div class="mb-6">
+            <label class="block font-bold mb-2">Admin Secret:</label>
+            <input id="adminKey" type="password" placeholder="Ваш ADMIN_SECRET" 
+                class="w-full border px-3 py-2 rounded">
+        </div>
+
+        <hr class="my-6">
+
+        <!-- Broadcast -->
+        <h2 class="text-xl font-bold mb-4">📣 Broadcast (всім)</h2>
+        <textarea id="broadcastMsg" rows="4" placeholder="Повідомлення для всіх..." 
+            class="w-full border px-3 py-2 rounded mb-3"></textarea>
+        <button onclick="sendBroadcast()" 
+            class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
+            Надіслати всім
+        </button>
+
+        <hr class="my-6">
+
+        <!-- Конкретному користувачу -->
+        <h2 class="text-xl font-bold mb-2">👤 Конкретному користувачу</h2>
+        <p class="text-sm text-gray-500 mb-2">
+            Можна вказати <span class="font-semibold">Telegram User ID</span> або <span class="font-semibold">@username</span>.
+        </p>
+        <input id="userId" type="text" placeholder="User ID або @username" 
+            class="w-full border px-3 py-2 rounded mb-3">
+        <textarea id="userMsg" rows="4" placeholder="Повідомлення..." 
+            class="w-full border px-3 py-2 rounded mb-3"></textarea>
+        <button onclick="sendToUser()" 
+            class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+            Надіслати користувачу
+        </button>
+
+        <hr class="my-6">
+
+        <!-- Службові дії -->
+        <h2 class="text-xl font-bold mb-4">⚙ Службові дії</h2>
+
+        <div class="flex flex-col gap-3">
+            <button onclick="forceUpdate('auto')"
+                class="w-full bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+                📊 Форс-оновлення основних турнірів
+            </button>
+
+            <button onclick="forceUpdate('extra')"
+                class="w-full bg-teal-600 text-white px-6 py-2 rounded hover:bg-teal-700">
+                🏆 Форс-оновлення додаткових турнірів
+            </button>
+
+            <button onclick="sendReminderToSelf()"
+                class="w-full bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
+                ⏰ Надіслати нагадування тільки мені
+            </button>
+
+            <button onclick="resetRating()"
+                class="w-full bg-orange-600 text-white px-6 py-2 rounded hover:bg-orange-700">
+                ♻️ Скинути рейтинг усім користувачам
+            </button>
+        </div>
+
+        <div id="result" class="mt-6 p-4 rounded hidden"></div>
+    </div>
+
+    <script>
+        async function sendBroadcast() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+            const message = document.getElementById('broadcastMsg').value.trim();
+
+            if (!message) {
+                showResult('Введіть повідомлення!', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/admin/broadcast`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`✅ Надіслано ${data.sent} користувачам!`, 'success');
+                    document.getElementById('broadcastMsg').value = '';
+                } else {
+                    showResult(`❌ Помилка: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Помилка: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendToUser() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+            const target = document.getElementById('userId').value.trim();
+            const message = document.getElementById('userMsg').value.trim();
+
+            if (!target || !message) {
+                showResult('Введіть User ID або @username і повідомлення!', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/admin/send-user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    },
+                    body: JSON.stringify({ target, message })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`✅ Надіслано користувачу ${target}!`, 'success');
+                    document.getElementById('userMsg').value = '';
+                } else {
+                    showResult(`❌ Помилка: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Помилка: ${error.message}`, 'error');
+            }
+        }
+
+        // 🔄 Форс-оновлення матчів
+        async function forceUpdate(mode) {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+
+            try {
+                const response = await fetch(`${apiUrl}/api/force-update?mode=${mode}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(`✅ Форс-оновлення (${mode}) виконано`, 'success');
+                } else {
+                    showResult(`❌ Помилка: ${data.error || 'unknown'}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Помилка: ${error.message}`, 'error');
+            }
+        }
+
+        // ⏰ Нагадування тільки собі
+        async function sendReminderToSelf() {
+          const apiUrl = document.getElementById('apiUrl').value.trim();
+          const adminKey = document.getElementById('adminKey').value.trim();
+          const userField = document.getElementById('userId').value.trim(); // можно id или @username
+
+          try {
+            const params = userField
+              ? `?userId=${encodeURIComponent(userField)}`
+              : '';
+            const response = await fetch(`${apiUrl}/api/notify-upcoming${params}`, {
+              method: 'POST',
+              headers: {
+                'X-Admin-Key': adminKey
+              }
+            });
+        
+            const data = await response.json();
+        
+            if (response.ok && data.ok) {
+              showResult('✅ Нагадування відправлено тільки вам', 'success');
+            } else {
+              showResult(`❌ Помилка: ${data.message || data.error || 'Unknown error'}`, 'error');
+            }
+          } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+          }
+        }
+
+
+        // ♻️ Скинути рейтинг усім
+        async function resetRating() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+
+            if (!confirm('Точно скинути рейтинг усім користувачам?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/reset-rating`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(`✅ Рейтинг скинуто ${data.users} користувачам`, 'success');
+                } else {
+                    showResult(`❌ Помилка: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Помилка: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(msg, type) {
+            const result = document.getElementById('result');
+            result.textContent = msg;
+            result.className =
+                `mt-6 p-4 rounded ` +
+                (type === 'success'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800');
+            result.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
