@@ -436,48 +436,37 @@ function renderBets() {
         const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
         const label = labels[b.status] || 'Статус';
 
-        // ----- НОВОЕ: данные матча -----
-        const match = b.match || null;
-
-        const title = match
-            ? `${match.home_team} – ${match.away_team}`
+        const m = b.match || null;
+        const title = m
+            ? `${m.home_team} – ${m.away_team}`
             : `Матч #${b.match_id}`;
-
-        const competition = match?.competition || null;
-
-        const matchDateStr = match?.match_date
-            ? formatDate(match.match_date)
-            : '';
-
-        let scoreText = '';
-        if (
-            match &&
-            match.status === 'finished' &&
-            match.home_score != null &&
-            match.away_score != null
-        ) {
-            scoreText = `${match.home_score}:${match.away_score}`;
-        }
-        // --------------------------------
+        const comp = m?.competition || null;
+        const matchDate = m?.match_date ? formatDate(m.match_date) : null;
+        const score =
+            m && typeof m.home_score === 'number' && typeof m.away_score === 'number'
+                ? `${m.home_score}:${m.away_score}`
+                : null;
 
         return `
             <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colorClass}">
-                <div class="flex justify-between mb-2">
+                <div class="flex justify-between items-center mb-2 gap-3">
                     <div>
-                        <p class="font-bold">${title}</p>
-                        ${competition ? `
-                            <p class="text-xs text-gray-500">🏆 ${competition}</p>
-                        ` : ''}
-                        ${scoreText ? `
-                            <p class="text-xs text-gray-600">Рахунок: ${scoreText}</p>
-                        ` : ''}
+                        <p class="font-bold text-lg">${title}</p>
+                        ${comp ? `<p class="text-xs text-gray-500 mt-1">🏆 ${comp}</p>` : ''}
                         <p class="text-sm text-gray-600 mt-1">${b.bet_type} - ${b.selection}</p>
                     </div>
-                    <span class="px-2 py-1 ${colorClass} rounded text-xs font-bold">
+                    <span class="inline-flex items-center justify-center h-9 px-3 ${colorClass} rounded text-xs font-bold whitespace-nowrap">
                         ${label}
                     </span>
                 </div>
-                <div class="grid grid-cols-3 gap-2 text-sm">
+
+                ${score ? `
+                    <p class="text-sm text-gray-600 mb-1">
+                        Рахунок: <span class="font-bold">${score}</span>
+                    </p>
+                ` : ''}
+
+                <div class="grid grid-cols-3 gap-2 text-sm mt-1">
                     <div>
                         <p class="text-gray-500">Ставка</p>
                         <p class="font-bold">${b.stake}</p>
@@ -491,14 +480,16 @@ function renderBets() {
                         <p class="font-bold text-green-600">${payout}</p>
                     </div>
                 </div>
+
                 <p class="text-xs text-gray-400 mt-2">
                     Ставка: ${formatDate(b.created_at)}
-                    ${matchDateStr ? ` • Матч: ${matchDateStr}` : ''}
+                    ${matchDate ? ` • Матч: ${matchDate}` : ''}
                 </p>
             </div>
         `;
     }).join('');
 }
+
     
 function renderLeaderboard() {
     return state.leaderboard.map((p, i) => {
