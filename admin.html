@@ -3,270 +3,600 @@
 <head>
     <meta charset="UTF-8">
     <title>Ліверпульс – Адмін</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-    <div class="min-h-screen flex flex-col">
-        <!-- Шапка -->
-        <header class="bg-red-600 text-white px-4 py-3 shadow-md">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-lg font-bold">Ліверпульс · Адмін</h1>
-                    <p class="text-xs opacity-80">мобільна панель керування</p>
+<body class="bg-gray-100 min-h-screen">
+<div class="max-w-xl mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 space-y-6">
+        <h1 class="text-xl sm:text-2xl font-bold">📢 Адмін панель</h1>
+
+        <!-- Підключення -->
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1">API URL</label>
+                <input id="apiUrl" type="text"
+                       value="https://liverpulse-worker.liverpulse.workers.dev"
+                       class="w-full border px-3 py-2 rounded-lg text-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold mb-1">Admin Secret</label>
+                <input id="adminKey" type="password" placeholder="Ваш ADMIN_SECRET"
+                       class="w-full border px-3 py-2 rounded-lg text-sm">
+            </div>
+        </div>
+
+        <hr class="my-2">
+
+        <!-- Broadcast -->
+        <section class="space-y-2">
+            <h2 class="text-lg sm:text-xl font-bold">📣 Broadcast (всім)</h2>
+            <textarea id="broadcastMsg" rows="3"
+                      placeholder="Повідомлення для всіх..."
+                      class="w-full border px-3 py-2 rounded-lg text-sm"></textarea>
+            <button onclick="sendBroadcast()"
+                    class="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700">
+                Надіслати всім
+            </button>
+        </section>
+
+        <hr class="my-2">
+
+        <!-- КОНКРЕТНИЙ ЮЗЕР -->
+        <section class="space-y-3">
+            <div>
+                <h2 class="text-lg sm:text-xl font-bold mb-1">👤 Дії з конкретним юзером</h2>
+                <p class="text-xs sm:text-sm text-gray-500">
+                    Можна вказати <span class="font-semibold">Telegram User ID</span> або <span class="font-semibold">@username</span>.
+                </p>
+            </div>
+
+            <input id="userId" type="text"
+                   placeholder="User ID або @username"
+                   class="w-full border px-3 py-2 rounded-lg text-sm">
+
+            <textarea id="userMsg" rows="3"
+                      placeholder="Повідомлення цьому юзеру..."
+                      class="w-full border px-3 py-2 rounded-lg text-sm"></textarea>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button onclick="sendToUser()"
+                        class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">
+                    ✉️ Надіслати повідомлення
+                </button>
+
+                <button onclick="fetchUserBets()"
+                        class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700">
+                    📋 Показати всі ставки юзера
+                </button>
+
+                <button onclick="blockUser(true)"
+                        class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-700">
+                    🔒 Заблокувати доступ
+                </button>
+
+                <button onclick="blockUser(false)"
+                        class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800">
+                    ✅ Розблокувати доступ
+                </button>
+
+                <button onclick="resetUserResults()"
+                        class="w-full sm:col-span-2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600">
+                    ♻️ Скинути всі результати юзера
+                </button>
+            </div>
+
+            <div id="userBetsResult"
+                 class="hidden whitespace-pre-wrap text-[11px] sm:text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-[320px] overflow-auto"></div>
+        </section>
+
+        <hr class="my-2">
+
+        <!-- СЛУЖБОВІ ДІЇ -->
+        <section class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold">⚙ Службові дії</h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button onclick="forceUpdate('auto')"
+                        class="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700">
+                    📊 Форс-оновлення основних турнірів
+                </button>
+
+                <button onclick="forceUpdate('extra')"
+                        class="w-full bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-700">
+                    🏆 Форс-оновлення додаткових турнірів
+                </button>
+
+                <button onclick="sendReminderToSelf()"
+                        class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">
+                    ⏰ Надіслати нагадування (upcoming)
+                </button>
+
+                <button onclick="resetRating()"
+                        class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-700">
+                    ♻️ Скинути рейтинг усім
+                </button>
+            </div>
+        </section>
+
+        <hr class="my-2">
+
+        <!-- ЕКСПОРТ СТАВОК + СТАТИСТИКА -->
+        <section class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold">📄 Експорт ставок та статистика</h2>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-semibold mb-1">
+                    Діапазон для експорту (днів)
+                </label>
+                <input id="daysRange" type="number" min="1" value="30"
+                       class="w-full border px-3 py-1.5 rounded-lg text-xs">
+                <button onclick="downloadAllBets()"
+                        class="w-full bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-sky-700">
+                    ⬇️ Завантажити CSV зі ставками
+                </button>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-base sm:text-lg font-semibold">📊 Загальна статистика</h3>
+                <button onclick="loadStats()"
+                        class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-black">
+                    Оновити статистику
+                </button>
+                <div id="statsBox"
+                     class="text-xs bg-gray-50 border rounded-lg p-2 min-h-[48px]">
+                    Натисніть "Оновити статистику"
                 </div>
-                <div class="text-2xl">⚙️</div>
             </div>
-        </header>
+        </section>
 
-        <!-- Контент -->
-        <main class="flex-1 px-4 py-4 pb-20">
-            <div class="w-full max-w-xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6 space-y-6">
-
-                <!-- Налаштування -->
-                <section class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">API URL</label>
-                        <input id="apiUrl" type="text"
-                               value="https://liverpulse-worker.liverpulse.workers.dev"
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">Admin Secret</label>
-                        <input id="adminKey" type="password" placeholder="Ваш ADMIN_SECRET"
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                    </div>
-                </section>
-
-                <hr class="border-gray-200">
-
-                <!-- Broadcast -->
-                <section class="space-y-3">
-                    <h2 class="text-lg font-bold flex items-center gap-2">
-                        <span>📣 Broadcast (всім)</span>
-                    </h2>
-                    <textarea id="broadcastMsg" rows="3"
-                              placeholder="Повідомлення для всіх..."
-                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
-                    <button onclick="sendBroadcast()"
-                            class="w-full bg-red-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-red-700">
-                        Надіслати всім
-                    </button>
-                </section>
-
-                <hr class="border-gray-200">
-
-                <!-- Конкретному користувачу -->
-                <section class="space-y-3">
-                    <div>
-                        <h2 class="text-lg font-bold flex items-center gap-2">
-                            <span>👤 Конкретному користувачу</span>
-                        </h2>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Можна вказати <span class="font-semibold">Telegram User ID</span> або <span class="font-semibold">@username</span>.
-                        </p>
-                    </div>
-
-                    <input id="userId" type="text" placeholder="User ID або @username"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-
-                    <textarea id="userMsg" rows="3" placeholder="Повідомлення..."
-                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
-
-                    <button onclick="sendToUser()"
-                            class="w-full bg-blue-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-blue-700">
-                        Надіслати користувачу
-                    </button>
-                </section>
-
-                <hr class="border-gray-200">
-
-                <!-- Службові дії -->
-                <section class="space-y-3">
-                    <h2 class="text-lg font-bold flex items-center gap-2">
-                        <span>⚙ Службові дії</span>
-                    </h2>
-
-                    <div class="flex flex-col gap-2">
-                        <button onclick="forceUpdate('auto')"
-                                class="w-full bg-green-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-green-700">
-                            📊 Форс-оновлення основних турнірів
-                        </button>
-
-                        <button onclick="forceUpdate('extra')"
-                                class="w-full bg-teal-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-teal-700">
-                            🏆 Форс-оновлення додаткових турнірів
-                        </button>
-
-                        <button onclick="sendReminderToSelf()"
-                                class="w-full bg-indigo-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-indigo-700">
-                            ⏰ Надіслати нагадування тільки мені
-                        </button>
-
-                        <button onclick="resetRating()"
-                                class="w-full bg-orange-600 text-white text-sm sm:text-base px-4 py-3 rounded-lg font-semibold active:scale-95 transition hover:bg-orange-700">
-                            ♻️ Скинути рейтинг усім користувачам
-                        </button>
-                    </div>
-                </section>
-
-                <div id="result" class="mt-2 p-3 rounded hidden text-sm"></div>
-            </div>
-        </main>
+        <!-- РЕЗУЛЬТАТ ПОДІЙ -->
+        <div id="result" class="mt-2 p-3 rounded-lg text-sm hidden"></div>
     </div>
+</div>
 
-    <script>
-        async function sendBroadcast() {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const adminKey = document.getElementById('adminKey').value.trim();
-            const message = document.getElementById('broadcastMsg').value.trim();
+<script>
+    function showResult(msg, type) {
+        const el = document.getElementById('result');
+        el.textContent = msg;
+        el.className =
+            'mt-2 p-3 rounded-lg text-sm ' +
+            (type === 'success'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800');
+        el.classList.remove('hidden');
+    }
 
-            if (!message) {
-                showResult('Введіть повідомлення!', 'error');
+    function formatDateTime(str) {
+        if (!str) return '';
+        const d = new Date(str);
+        return d.toLocaleString('uk-UA', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // ---------- Broadcast ----------
+    async function sendBroadcast() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const message = document.getElementById('broadcastMsg').value.trim();
+
+        if (!message) {
+            showResult('Введіть повідомлення!', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/broadcast`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showResult(`✅ Надіслано ${data.sent} користувачам`, 'success');
+                document.getElementById('broadcastMsg').value = '';
+            } else {
+                showResult(`❌ Помилка: ${data.error}`, 'error');
+            }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Send to user ----------
+    async function sendToUser() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const target = document.getElementById('userId').value.trim();
+        const message = document.getElementById('userMsg').value.trim();
+
+        if (!target || !message) {
+            showResult('Введіть User ID / @username і повідомлення!', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/send-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                },
+                body: JSON.stringify({ target, message })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showResult(`✅ Надіслано користувачу ${target}`, 'success');
+                document.getElementById('userMsg').value = '';
+            } else {
+                showResult(`❌ Помилка: ${data.error}`, 'error');
+            }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Force update ----------
+    async function forceUpdate(mode) {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        try {
+            const response = await fetch(`${apiUrl}/api/force-update?mode=${mode}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showResult(`✅ Форс-оновлення (${mode}) виконано`, 'success');
+            } else {
+                showResult(`❌ Помилка: ${data.error || 'unknown'}`, 'error');
+            }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Reminder only for me (upcoming) ----------
+    async function sendReminderToSelf() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const userField = document.getElementById('userId').value.trim();
+
+        try {
+            const params = userField
+                ? `?userId=${encodeURIComponent(userField)}`
+                : '';
+            const response = await fetch(`${apiUrl}/api/notify-upcoming${params}`, {
+                method: 'POST',
+                headers: {
+                    'X-Admin-Key': adminKey
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.ok) {
+                showResult('✅ Нагадування відправлено', 'success');
+            } else {
+                showResult(`❌ Помилка: ${data.message || data.error || 'Unknown error'}`, 'error');
+            }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Reset all ratings ----------
+    async function resetRating() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        if (!confirm('Точно скинути рейтинг усім користувачам?')) return;
+
+        try {
+            const response = await fetch(`${apiUrl}/api/reset-rating`, {
+                method: 'POST',
+                headers: { 'X-Admin-Key': adminKey }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showResult(`✅ Рейтинг скинуто ${data.users} користувачам`, 'success');
+            } else {
+                showResult(`❌ Помилка: ${data.error}`, 'error');
+            }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Fetch user bets ----------
+    async function fetchUserBets() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const target = document.getElementById('userId').value.trim();
+        const box = document.getElementById('userBetsResult');
+
+        if (!target) {
+            showResult('Вкажіть User ID / @username для перегляду ставок', 'error');
+            return;
+        }
+
+        box.textContent = 'Завантаження...';
+        box.classList.remove('hidden');
+
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/admin/user-bets?target=${encodeURIComponent(target)}`,
+                {
+                    headers: { 'X-Admin-Key': adminKey }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                box.textContent = `Помилка: ${data.error || 'unknown'}`;
                 return;
             }
 
-            try {
-                const response = await fetch(`${apiUrl}/api/admin/broadcast`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Key': adminKey
-                    },
-                    body: JSON.stringify({ message })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showResult(`✅ Надіслано ${data.sent} користувачам!`, 'success');
-                    document.getElementById('broadcastMsg').value = '';
-                } else {
-                    showResult(`❌ Помилка: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Помилка: ${error.message}`, 'error');
-            }
-        }
-
-        async function sendToUser() {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const adminKey = document.getElementById('adminKey').value.trim();
-            const target = document.getElementById('userId').value.trim();
-            const message = document.getElementById('userMsg').value.trim();
-
-            if (!target || !message) {
-                showResult('Введіть User ID або @username і повідомлення!', 'error');
+            if (!data.bets.length) {
+                box.textContent = `Ставок не знайдено для ${data.user.username}`;
                 return;
             }
 
-            try {
-                const response = await fetch(`${apiUrl}/api/admin/send-user`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Key': adminKey
-                    },
-                    body: JSON.stringify({ target, message })
-                });
+            const lines = data.bets.map(b => {
+                const matchTitle = b.match_home && b.match_away
+                    ? `${b.match_home} – ${b.match_away}`
+                    : `Матч #${b.match_id}`;
+                const resScore = (b.home_score != null && b.away_score != null)
+                    ? ` | Рахунок: ${b.home_score}:${b.away_score}`
+                    : '';
+                const statusMap = {
+                    pending: 'очікування',
+                    won: 'виграш',
+                    lost: 'програш',
+                    refund: 'повернення'
+                };
+                const status = statusMap[b.status] || b.status;
 
-                const data = await response.json();
+                return `${formatDateTime(b.created_at)} | ${matchTitle}` +
+                    (b.competition ? ` (${b.competition})` : '') +
+                    `\n  Ставка: ${b.bet_type} – ${b.selection}, статус: ${status}` +
+                    `\n  Коеф.: ${b.odds}, сума: ${b.stake}, потенц. виграш: ${b.potential_win}` +
+                    (b.user_points_after != null ? `, баланс після: ${b.user_points_after}` : '') +
+                    resScore +
+                    `\n`;
+            });
 
-                if (response.ok) {
-                    showResult(`✅ Надіслано користувачу ${target}!`, 'success');
-                    document.getElementById('userMsg').value = '';
-                } else {
-                    showResult(`❌ Помилка: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Помилка: ${error.message}`, 'error');
+            box.textContent = `Юзер: ${data.user.username} (id: ${data.user.id})\n\n` + lines.join('\n');
+        } catch (error) {
+            box.textContent = `Помилка: ${error.message}`;
+        }
+    }
+
+    // ---------- Download all bets CSV ----------
+    async function downloadAllBets() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const daysField = document.getElementById('daysRange');
+        const daysValue = daysField ? Number(daysField.value) : NaN;
+        const days = Number.isFinite(daysValue) && daysValue > 0 ? daysValue : 30;
+
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/all-bets?days=${days}`, {
+                headers: { 'X-Admin-Key': adminKey }
+            });
+
+            const payload = await response.json();
+
+            if (!response.ok) {
+                showResult(`❌ Помилка: ${payload.error || 'unknown'}`, 'error');
+                return;
             }
-        }
 
-        async function forceUpdate(mode) {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const adminKey = document.getElementById('adminKey').value.trim();
+            const data = payload.data || [];
 
-            try {
-                const response = await fetch(`${apiUrl}/api/force-update?mode=${mode}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Key': adminKey
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showResult(`✅ Форс-оновлення (${mode}) виконано`, 'success');
-                } else {
-                    showResult(`❌ Помилка: ${data.error || 'unknown'}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Помилка: ${error.message}`, 'error');
+            if (!data.length) {
+                showResult(`Немає ставок за останні ${payload.days} днів`, 'error');
+                return;
             }
+
+            const header = [
+                'id','user_id','username','created_at',
+                'match','competition','score',
+                'bet_type','selection','status',
+                'odds','stake','potential_win','user_points_after'
+            ].join(';') + '\n';
+
+            const lines = data.map(b => {
+                const matchTitle = b.match_home && b.match_away
+                    ? `${b.match_home} – ${b.match_away}`
+                    : `Матч #${b.match_id}`;
+                const score = (b.home_score != null && b.away_score != null)
+                    ? `${b.home_score}:${b.away_score}`
+                    : '';
+                return [
+                    b.id,
+                    b.user_id,
+                    (b.username || '').replace(/;/g, ','),
+                    formatDateTime(b.created_at),
+                    matchTitle.replace(/;/g, ','),
+                    (b.competition || '').replace(/;/g, ','),
+                    score,
+                    b.bet_type,
+                    b.selection,
+                    b.status,
+                    b.odds,
+                    b.stake,
+                    b.potential_win,
+                    b.user_points_after ?? ''
+                ].join(';');
+            });
+
+            const content = header + lines.join('\n');
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const ts = now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            a.href = url;
+            a.download = `liverpulse_bets_last_${payload.days}_days_${ts}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showResult(`✅ CSV зі ставками (останні ${payload.days} днів) збережено`, 'success');
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Block / unblock user ----------
+    async function blockUser(block) {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const target = document.getElementById('userId').value.trim();
+
+        if (!target) {
+            showResult('Вкажіть User ID / @username для блокування', 'error');
+            return;
         }
 
-        async function sendReminderToSelf() {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const adminKey = document.getElementById('adminKey').value.trim();
-            const userField = document.getElementById('userId').value.trim();
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/block-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                },
+                body: JSON.stringify({ target, block })
+            });
 
-            try {
-                const params = userField ? `?userId=${encodeURIComponent(userField)}` : '';
-                const response = await fetch(`${apiUrl}/api/notify-upcoming${params}`, {
-                    method: 'POST',
-                    headers: { 'X-Admin-Key': adminKey }
-                });
+            const data = await response.json();
 
-                const data = await response.json();
-
-                if (response.ok && data.ok) {
-                    showResult('✅ Нагадування відправлено тільки вам', 'success');
-                } else {
-                    showResult(`❌ Помилка: ${data.message || data.error || 'Unknown error'}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Помилка: ${error.message}`, 'error');
+            if (response.ok && data.ok) {
+                showResult(
+                    block
+                        ? `✅ Юзера ${data.username} заблоковано`
+                        : `✅ Юзера ${data.username} розблоковано`,
+                    'success'
+                );
+            } else {
+                showResult(`❌ Помилка: ${data.error || 'unknown'}`, 'error');
             }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
+        }
+    }
+
+    // ---------- Reset one user's results ----------
+    async function resetUserResults() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const target = document.getElementById('userId').value.trim();
+
+        if (!target) {
+            showResult('Вкажіть User ID / @username для скидання результатів', 'error');
+            return;
         }
 
-        async function resetRating() {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
-            const adminKey = document.getElementById('adminKey').value.trim();
+        if (!confirm('Точно видалити всі ставки і скинути рейтинг цього юзера?')) return;
 
-            if (!confirm('Точно скинути рейтинг усім користувачам?')) return;
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/reset-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                },
+                body: JSON.stringify({ target })
+            });
 
-            try {
-                const response = await fetch(`${apiUrl}/api/reset-rating`, {
-                    method: 'POST',
-                    headers: { 'X-Admin-Key': adminKey }
-                });
+            const data = await response.json();
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    showResult(`✅ Рейтинг скинуто ${data.users} користувачам`, 'success');
-                } else {
-                    showResult(`❌ Помилка: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Помилка: ${error.message}`, 'error');
+            if (response.ok && data.ok) {
+                showResult(`✅ Результати юзера ${data.username} скинуто`, 'success');
+            } else {
+                showResult(`❌ Помилка: ${data.error || 'unknown'}`, 'error');
             }
+        } catch (error) {
+            showResult(`❌ Помилка: ${error.message}`, 'error');
         }
+    }
 
-        function showResult(msg, type) {
-            const result = document.getElementById('result');
-            result.textContent = msg;
-            result.className =
-                'mt-2 p-3 rounded text-sm ' +
-                (type === 'success'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800');
-            result.classList.remove('hidden');
+    // ---------- Dashboard stats ----------
+    async function loadStats() {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+        const box = document.getElementById('statsBox');
+
+        if (!box) return;
+
+        box.textContent = 'Завантаження...';
+
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/stats`, {
+                headers: { 'X-Admin-Key': adminKey }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                box.textContent = `Помилка: ${data.error || 'unknown'}`;
+                return;
+            }
+
+            box.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 text-[11px] sm:text-sm">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-2">
+                        <div class="font-semibold">Юзерів</div>
+                        <div class="text-lg sm:text-xl font-bold">${data.totalUsers}</div>
+                        <div class="text-[11px] text-gray-500">Активних: ${data.activeUsers}</div>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                        <div class="font-semibold">Ставок</div>
+                        <div class="text-lg sm:text-xl font-bold">${data.totalBets}</div>
+                        <div class="text-[11px] text-gray-500">Winrate: ${data.winRate}%</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                        <div class="font-semibold">Сума ставок</div>
+                        <div class="text-lg sm:text-xl font-bold">${data.totalStake.toFixed(0)}</div>
+                        <div class="text-[11px] text-gray-500">Потенц. виграш: ${data.totalPotentialWin.toFixed(0)}</div>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                        <div class="font-semibold">Виплати по виграшам</div>
+                        <div class="text-lg sm:text-xl font-bold">${data.sumWonPayout.toFixed(0)}</div>
+                        <div class="text-[11px] text-gray-500">
+                            Виграшів / Повернень: ${data.totalWonBets} / ${data.totalRefundBets}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            box.textContent = `Помилка: ${error.message}`;
         }
-    </script>
+    }
+</script>
 </body>
 </html>
