@@ -85,12 +85,11 @@
                         class="w-full sm:col-span-2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600">
                     ♻️ Скинути всі результати юзера
                 </button>
-                
-                <button onclick="deleteUser()"
-                        class="w-full bg-red-900 text-white px-6 py-2 rounded hover:bg-red-950">
-                    🗑️ Видалити юзера з рейтингу
-                </button>
 
+                <button onclick="deleteUser()"
+                        class="w-full sm:col-span-2 bg-red-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-950">
+                    🗑️ Повністю видалити юзера з рейтингу
+                </button>
             </div>
 
             <div id="userBetsResult"
@@ -281,7 +280,7 @@
         }
     }
 
-    // ---------- Reminder only for me (upcoming) ----------
+    // ---------- Reminder (upcoming) ----------
     async function sendReminderToSelf() {
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
@@ -335,43 +334,42 @@
         }
     }
 
-    // ---------- Delete User ----------
+    // ---------- Delete User (full remove) ----------
     async function deleteUser() {
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
 
         if (!target) {
-          showResult('Введіть User ID або @username!', 'error');
-          return;
+            showResult('Введіть User ID або @username!', 'error');
+            return;
         }
 
         if (!confirm(`Точно видалити юзера ${target} з рейтингу назавжди?`)) {
-          return;
+            return;
         }
 
         try {
-          const resp = await fetch(`${apiUrl}/api/admin/delete-user`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Admin-Key': adminKey,
-            },
-            body: JSON.stringify({ target }),
-          });
+            const resp = await fetch(`${apiUrl}/api/admin/delete-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey,
+                },
+                body: JSON.stringify({ target }),
+            });
 
-          const data = await resp.json();
+            const data = await resp.json();
 
-          if (resp.ok && data.ok) {
-            showResult(`✅ Юзера ${data.username} повністю видалено`, 'success');
-          } else {
-            showResult(`❌ Помилка: ${data.error || 'Unknown error'}`, 'error');
-          }
+            if (resp.ok && data.ok) {
+                showResult(`✅ Юзера ${data.username} повністю видалено`, 'success');
+            } else {
+                showResult(`❌ Помилка: ${data.error || 'Unknown error'}`, 'error');
+            }
         } catch (e) {
-          showResult(`❌ Помилка: ${e.message}`, 'error');
+            showResult(`❌ Помилка: ${e.message}`, 'error');
         }
     }
-
 
     // ---------- Fetch user bets ----------
     async function fetchUserBets() {
@@ -644,4 +642,3 @@
 </script>
 </body>
 </html>
-
