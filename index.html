@@ -29,10 +29,8 @@
 // КОНФІГУРАЦІЯ
 // ==========================================
 const CONFIG = {
-    // ВАЖЛИВО: Замініть на ваш Worker URL!
     API_URL: 'https://liverpulse-worker.liverpulse.workers.dev',
     USE_TELEGRAM: true,
-    // Базовый URL для логотипов команд (позже сюда подставишь свой домен)
     LOGO_BASE: 'https://your-domain-or-gh-pages-url/logos'
 };
 
@@ -59,7 +57,12 @@ const state = {
     currentPage: 'matches',
     loading: true,
     selectedMatch: null,
-    betSlip: { matchId: 0, type: '', selection: '', odds: 0, stake: 50 }
+    betSlip: { matchId: 0, type: '', selection: '', odds: 0, stake: 50 },
+    expanded: {
+        totals: {},
+        handicaps: {},
+        correctScore: {}
+    }
 };
 
 // ==========================================
@@ -203,7 +206,6 @@ function getTeamLogo(name) {
     return `${CONFIG.LOGO_BASE}/${slug}.png`;
 }
 
-
 // ==========================================
 // РЕНДЕРИНГ
 // ==========================================
@@ -239,7 +241,7 @@ function renderMatches() {
         const homeLogo = getTeamLogo(m.home_team);
         const awayLogo = getTeamLogo(m.away_team);
 
-        // ✅ ЗАВЕРШЁННЫЙ МАТЧ – красный блок + турнир
+        // Завершений матч
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
@@ -271,7 +273,7 @@ function renderMatches() {
             `;
         }
 
-        // ✅ Статусный блок для upcoming/locked/live
+        // Статусный блок для upcoming/locked/live
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
@@ -289,7 +291,157 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // ✅ Карточка для будущих / live / locked матчей
+        // --- ДИНАМИЧЕСКИЕ БЛОКИ ---
+
+        // 1) Ставки на тотал (из totals_lines)
+        let totalsBlock = '';
+        const totalsLines = m.totals_lines || null;
+        if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
+            const entries = Object.entries(totalsLines).sort(
+                ([a], [b]) => parseFloat(a) - parseFloat(b)
+            );
+            const isOpen = !!(state.expanded.totals[m.id]);
+
+            totalsBlock = `
+                <div class="mt-2">
+                    <button
+                        class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                        onclick="toggleTotals(${m.id})"
+                    >
+                        <span class="font-medium">Ставки на тотал</span>
+                        <span>${isOpen ? '▲' : '▼'}</span>
+                    </button>
+                    ${isOpen ? `
+                        <div class="mt-1 space-y-1">
+                            ${entries.map(([pt, line]) => `
+                                <div class="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1">
+                                    <button
+                                        class="flex-1 text-left pr-1"
+                                        onclick="openBet(${m.id}, 'Тотал', 'Б ${pt}', ${line.over})"
+                                    >
+                                        ТБ ${pt} (${line.over ?? '-'})
+                                    </button>
+                                    <button
+                                        class="flex-1 text-right pl-1"
+                                        onclick="openBet(${m.id}, 'Тотал', 'М ${pt}', ${line.under})"
+                                    >
+                                        ТМ ${pt} (${line.under ?? '-'})
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // 2) Ставки з форою (из spread_lines)
+        let handicapsBlock = '';
+        const spreadLines = m.spread_lines || null;
+        if (
+            canBet &&
+            spreadLines &&
+            (spreadLines.home || spreadLines.away) &&
+            (Object.keys(spreadLines.home || {}).length > 0 ||
+             Object.keys(spreadLines.away || {}).length > 0)
+        ) {
+            const homeMap = spreadLines.home || {};
+            const awayMap = spreadLines.away || {};
+            const points = Array.from(
+                new Set([
+                    ...Object.keys(homeMap),
+                    ...Object.keys(awayMap)
+                ])
+            ).sort((a, b) => parseFloat(a) - parseFloat(b));
+
+            const isOpen = !!(state.expanded.handicaps[m.id]);
+
+            handicapsBlock = `
+                <div class="mt-2">
+                    <button
+                        class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                        onclick="toggleHandicaps(${m.id})"
+                    >
+                        <span class="font-medium">Ставки з форою</span>
+                        <span>${isOpen ? '▲' : '▼'}</span>
+                    </button>
+                    ${isOpen ? `
+                        <div class="mt-1 space-y-1">
+                            ${points.map(pt => {
+                                const homeOdds = homeMap[pt] ?? null;
+                                const awayOdds = awayMap[pt] ?? null;
+                                const val = parseFloat(pt);
+                                const signed = val === 0 ? '0' : (val > 0 ? `+${pt}` : pt);
+
+                                return `
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1">
+                                        ${homeOdds ? `
+                                            <button
+                                                class="flex-1 text-left pr-1"
+                                                onclick="openBet(${m.id}, 'Фора', 'П1 (${signed})', ${homeOdds})"
+                                            >
+                                                Ф1 ${signed} (${homeOdds})
+                                            </button>
+                                        ` : '<div class="flex-1"></div>'}
+                                        ${awayOdds ? `
+                                            <button
+                                                class="flex-1 text-right pl-1"
+                                                onclick="openBet(${m.id}, 'Фора', 'П2 (${signed})', ${awayOdds})"
+                                            >
+                                                Ф2 ${signed} (${awayOdds})
+                                            </button>
+                                        ` : '<div class="flex-1"></div>'}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // 3) Ставки на точний рахунок
+        let correctScoreBlock = '';
+        const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
+        if (canBet && csArr.length > 0) {
+            // Фильтруем самые "адекватные" счета (до 3 голов каждой команды)
+            const filtered = csArr.filter(cs => {
+                const parts = cs.score.split(':');
+                if (parts.length !== 2) return false;
+                const h = parseInt(parts[0], 10);
+                const a = parseInt(parts[1], 10);
+                return Number.isFinite(h) && Number.isFinite(a) && h <= 3 && a <= 3;
+            }).slice(0, 18); // максимум 18 вариантов
+
+            if (filtered.length > 0) {
+                const isOpen = !!(state.expanded.correctScore[m.id]);
+                correctScoreBlock = `
+                    <div class="mt-2">
+                        <button
+                            class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                            onclick="toggleCorrectScore(${m.id})"
+                        >
+                            <span class="font-medium">Ставки на точний рахунок</span>
+                            <span>${isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        ${isOpen ? `
+                            <div class="mt-1 grid grid-cols-3 gap-1 text-[11px]">
+                                ${filtered.map(cs => `
+                                    <button
+                                        class="bg-gray-50 rounded px-1 py-1"
+                                        onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})"
+                                    >
+                                        ${cs.score} (${cs.odds})
+                                    </button>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        // Карточка для майбутніх / live / locked матчів
         return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
@@ -334,72 +486,14 @@ function renderMatches() {
                     </button>
                 </div>
 
-                ${m.odds_over25 && m.odds_under25 ? `
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 2.5', ${m.odds_over25})"
-                        class="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">Б 2.5</p>
-                        <p class="font-bold text-purple-700">${m.odds_over25}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, 'Тотал', 'М 2.5', ${m.odds_under25})"
-                        class="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">М 2.5</p>
-                        <p class="font-bold text-orange-700">${m.odds_under25}</p>
-                    </button>
-                </div>
-                ` : ''}
-
-                ${m.odds_over15 && m.odds_under15 ? `
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 1.5', ${m.odds_over15})"
-                        class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">Б 1.5</p>
-                        <p class="font-bold text-indigo-700">${m.odds_over15}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, 'Тотал', 'М 1.5', ${m.odds_under15})"
-                        class="bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">М 1.5</p>
-                        <p class="font-bold text-pink-700">${m.odds_under15}</p>
-                    </button>
-                </div>
-                ` : ''}
-
-                ${m.odds_over35 && m.odds_under35 ? `
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button onclick="openBet(${m.id}, 'Тотал', 'Б 3.5', ${m.odds_over35})"
-                        class="bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">Б 3.5</p>
-                        <p class="font-bold text-teal-700">${m.odds_over35}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, 'Тотал', 'М 3.5', ${m.odds_under35})"
-                        class="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">М 3.5</p>
-                        <p class="font-bold text-amber-700">${m.odds_under35}</p>
-                    </button>
-                </div>
-                ` : ''}
-
-                ${m.odds_home_minus15 && m.odds_away_plus15 ? `
-               <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button onclick="openBet(${m.id}, 'Фора', 'П1 (-1.5)', ${m.odds_home_minus15})"
-                        class="bg-lime-50 hover:bg-lime-100 border border-lime-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П1 (-1.5)</p>
-                        <p class="font-bold text-lime-700">${m.odds_home_minus15}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, 'Фора', 'П2 (+1.5)', ${m.odds_away_plus15})"
-                        class="bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П2 (+1.5)</p>
-                        <p class="font-bold text-cyan-700">${m.odds_away_plus15}</p>
-                    </button>
-                </div>
-                ` : ''}
+                ${totalsBlock}
+                ${handicapsBlock}
+                ${correctScoreBlock}
             ` : statusBlock}
-
         </div>
         `;
     }).join('');
 }
-
 
 function renderBets() {
     if (state.myBets.length === 0) {
@@ -490,7 +584,6 @@ function renderBets() {
     }).join('');
 }
 
-    
 function renderLeaderboard() {
     return state.leaderboard.map((p, i) => {
         const isMe = state.user && p.username === state.user.telegram_username;
@@ -670,6 +763,22 @@ window.setStake = (amt) => {
     document.getElementById('stake').value = amt;
     updateStake(amt);
     if (tg) tg.HapticFeedback.impactOccurred('light');
+};
+
+// Тогглы для випадаючих списків
+window.toggleTotals = (matchId) => {
+    state.expanded.totals[matchId] = !state.expanded.totals[matchId];
+    render();
+};
+
+window.toggleHandicaps = (matchId) => {
+    state.expanded.handicaps[matchId] = !state.expanded.handicaps[matchId];
+    render();
+};
+
+window.toggleCorrectScore = (matchId) => {
+    state.expanded.correctScore[matchId] = !state.expanded.correctScore[matchId];
+    render();
 };
 
 // ==========================================
