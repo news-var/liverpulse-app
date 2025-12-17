@@ -7,9 +7,9 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { 
-            overflow-x: hidden; 
-            -webkit-user-select: none; 
+        body {
+            overflow-x: hidden;
+            -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
@@ -115,12 +115,12 @@ async function loadLeaderboard() {
 
 async function placeBet() {
     const { matchId, type, selection, odds, stake } = state.betSlip;
-    
+
     if (stake < 10) {
         showError('Мінімум 10 балів');
         return;
     }
-    
+
     if (stake > state.user.points) {
         showError('Недостатньо балів!');
         return;
@@ -135,11 +135,11 @@ async function placeBet() {
         state.user.points = result.newBalance;
         state.selectedMatch = null;
         state.currentPage = 'bets';
-        
+
         await loadMyBets();
         showSuccess('Ставку прийнято! ✅');
         if (tg) tg.HapticFeedback.notificationOccurred('success');
-        
+
         render();
     } catch (error) {
         console.error('Bet error:', error);
@@ -204,6 +204,34 @@ function getTeamLogo(name) {
     if (!name) return null;
     const slug = teamSlug(name);
     return `${CONFIG.LOGO_BASE}/${slug}.png`;
+}
+
+// Расчёт коэффициентов на 1X / 12 / X2
+function computeDoubleChanceOdds(match) {
+    const oh = Number(match.odds_home || 0);
+    const od = Number(match.odds_draw || 0);
+    const oa = Number(match.odds_away || 0);
+
+    if (!oh || !od || !oa) return null;
+
+    const pHomeRaw = 1 / oh;
+    const pDrawRaw = 1 / od;
+    const pAwayRaw = 1 / oa;
+    const overround = pHomeRaw + pDrawRaw + pAwayRaw;
+
+    const pHome = pHomeRaw / overround;
+    const pDraw = pDrawRaw / overround;
+    const pAway = pAwayRaw / overround;
+
+    const margin = 1.05; // невеликий оверраунд, щоб DC не були занадто жирні
+
+    const makeOdd = (p) => p > 0 ? Number((1 / (p * margin)).toFixed(2)) : null;
+
+    return {
+        '1X': makeOdd(pHome + pDraw),
+        '12': makeOdd(pHome + pAway),
+        'X2': makeOdd(pDraw + pAway)
+    };
 }
 
 // ==========================================
@@ -291,41 +319,70 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // --- ДИНАМИЧЕСКИЕ БЛОКИ ---
+        // ====== Double Chance 1X / 12 / X2 ======
+        const dc = canBet ? computeDoubleChanceOdds(m) : null;
+        const doubleChanceRow = (canBet && dc) ? `
+            <div class="grid grid-cols-3 gap-2 mt-2">
+                <button onclick="openBet(${m.id}, '1X2', '1X', ${dc['1X']})"
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+                    <p class="text-xs text-gray-600">1X</p>
+                    <p class="font-bold text-slate-700">${dc['1X']}</p>
+                </button>
+                <button onclick="openBet(${m.id}, '1X2', '12', ${dc['12']})"
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+                    <p class="text-xs text-gray-600">12</p>
+                    <p class="font-bold text-slate-700">${dc['12']}</p>
+                </button>
+                <button onclick="openBet(${m.id}, '1X2', 'X2', ${dc['X2']})"
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+                    <p class="text-xs text-gray-600">X2</p>
+                    <p class="font-bold text-slate-700">${dc['X2']}</p>
+                </button>
+            </div>
+        ` : '';
 
-        // 1) Ставки на тотал (из totals_lines)
+        // ====== Ставки на тотал (totals_lines) ======
         let totalsBlock = '';
         const totalsLines = m.totals_lines || null;
         if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
-            const entries = Object.entries(totalsLines).sort(
-                ([a], [b]) => parseFloat(a) - parseFloat(b)
-            );
+            const entries = Object.entries(totalsLines)
+                .map(([pt, line]) => ({
+                    pt,
+                    v: parseFloat(pt),
+                    over: line?.over ?? null,
+                    under: line?.under ?? null
+                }))
+                .filter(r => r.over || r.under)
+                .sort((a, b) => a.v - b.v);
+
             const isOpen = !!(state.expanded.totals[m.id]);
 
             totalsBlock = `
-                <div class="mt-2">
+                <div class="mt-3">
                     <button
-                        class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                        class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
                         onclick="toggleTotals(${m.id})"
                     >
-                        <span class="font-medium">Ставки на тотал</span>
+                        <span>Ставки на тотал</span>
                         <span>${isOpen ? '▲' : '▼'}</span>
                     </button>
                     ${isOpen ? `
-                        <div class="mt-1 space-y-1">
-                            ${entries.map(([pt, line]) => `
-                                <div class="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1">
+                        <div class="mt-2 space-y-2">
+                            ${entries.map(row => `
+                                <div class="grid grid-cols-2 gap-2 text-xs">
                                     <button
-                                        class="flex-1 text-left pr-1"
-                                        onclick="openBet(${m.id}, 'Тотал', 'Б ${pt}', ${line.over})"
+                                        class="flex flex-col items-center justify-center bg-red-50 hover:bg-red-100 border border-red-200 rounded-md py-2 px-2 active:scale-95"
+                                        onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"
                                     >
-                                        ТБ ${pt} (${line.over ?? '-'})
+                                        <span class="text-[11px] text-gray-600">ТМ ${row.pt}</span>
+                                        <span class="font-bold text-red-700">${row.under ?? '-'}</span>
                                     </button>
                                     <button
-                                        class="flex-1 text-right pl-1"
-                                        onclick="openBet(${m.id}, 'Тотал', 'М ${pt}', ${line.under})"
+                                        class="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 border border-green-200 rounded-md py-2 px-2 active:scale-95"
+                                        onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"
                                     >
-                                        ТМ ${pt} (${line.under ?? '-'})
+                                        <span class="text-[11px] text-gray-600">ТБ ${row.pt}</span>
+                                        <span class="font-bold text-green-700">${row.over ?? '-'}</span>
                                     </button>
                                 </div>
                             `).join('')}
@@ -335,7 +392,7 @@ function renderMatches() {
             `;
         }
 
-        // 2) Ставки з форою (из spread_lines)
+        // ====== Ставки з форою (spread_lines) ======
         let handicapsBlock = '';
         const spreadLines = m.spread_lines || null;
         if (
@@ -347,50 +404,92 @@ function renderMatches() {
         ) {
             const homeMap = spreadLines.home || {};
             const awayMap = spreadLines.away || {};
-            const points = Array.from(
-                new Set([
-                    ...Object.keys(homeMap),
-                    ...Object.keys(awayMap)
-                ])
-            ).sort((a, b) => parseFloat(a) - parseFloat(b));
+
+            const rawKeys = new Set([
+                ...Object.keys(homeMap),
+                ...Object.keys(awayMap)
+            ]);
+
+            let absPoints = Array.from(rawKeys)
+                .map(k => parseFloat(k))
+                .filter(v => !Number.isNaN(v))
+                .map(v => Math.abs(v))
+                .filter(v => v !== 0.5); // убираем +/-0.5, как просил
+
+            absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
+
+            const hasZero = homeMap['0'] != null || awayMap['0'] != null;
+            const points = hasZero ? [0, ...absPoints.filter(p => p !== 0)] : absPoints;
 
             const isOpen = !!(state.expanded.handicaps[m.id]);
 
             handicapsBlock = `
-                <div class="mt-2">
+                <div class="mt-3">
                     <button
-                        class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                        class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
                         onclick="toggleHandicaps(${m.id})"
                     >
-                        <span class="font-medium">Ставки з форою</span>
+                        <span>Ставки з форою</span>
                         <span>${isOpen ? '▲' : '▼'}</span>
                     </button>
                     ${isOpen ? `
-                        <div class="mt-1 space-y-1">
-                            ${points.map(pt => {
-                                const homeOdds = homeMap[pt] ?? null;
-                                const awayOdds = awayMap[pt] ?? null;
-                                const val = parseFloat(pt);
-                                const signed = val === 0 ? '0' : (val > 0 ? `+${pt}` : pt);
+                        <div class="mt-2 space-y-2">
+                            ${points.map(p => {
+                                let homeOdds, awayOdds, lbl1, lbl2, sel1, sel2;
+                                if (p === 0) {
+                                    homeOdds = homeMap['0'] ?? null;
+                                    awayOdds = awayMap['0'] ?? null;
+                                    lbl1 = 'Ф1 0';
+                                    lbl2 = 'Ф2 0';
+                                    sel1 = 'П1 (0)';
+                                    sel2 = 'П2 (0)';
+                                } else {
+                                    const pos = String(p);
+                                    const neg = String(-p);
+                                    homeOdds = homeMap[neg] ?? null;
+                                    awayOdds = awayMap[pos] ?? null;
+                                    lbl1 = `Ф1 -${p}`;
+                                    lbl2 = `Ф2 +${p}`;
+                                    sel1 = `П1 (-${p})`;
+                                    sel2 = `П2 (+${p})`;
+                                }
 
                                 return `
-                                    <div class="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1">
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
                                         ${homeOdds ? `
                                             <button
-                                                class="flex-1 text-left pr-1"
-                                                onclick="openBet(${m.id}, 'Фора', 'П1 (${signed})', ${homeOdds})"
+                                                class="flex flex-col items-center justify-center bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md py-2 px-2 active:scale-95"
+                                                onclick="openBet(${m.id}, 'Фора', '${sel1}', ${homeOdds})"
                                             >
-                                                Ф1 ${signed} (${homeOdds})
+                                                <span class="text-[11px] text-gray-600">${lbl1}</span>
+                                                <span class="font-bold text-indigo-700">${homeOdds}</span>
                                             </button>
-                                        ` : '<div class="flex-1"></div>'}
+                                        ` : `
+                                            <button
+                                                class="flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-md py-2 px-2 opacity-40 cursor-default"
+                                                disabled
+                                            >
+                                                <span class="text-[11px] text-gray-500">${lbl1}</span>
+                                                <span class="font-semibold text-gray-400">-</span>
+                                            </button>
+                                        `}
                                         ${awayOdds ? `
                                             <button
-                                                class="flex-1 text-right pl-1"
-                                                onclick="openBet(${m.id}, 'Фора', 'П2 (${signed})', ${awayOdds})"
+                                                class="flex flex-col items-center justify-center bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md py-2 px-2 active:scale-95"
+                                                onclick="openBet(${m.id}, 'Фора', '${sel2}', ${awayOdds})"
                                             >
-                                                Ф2 ${signed} (${awayOdds})
+                                                <span class="text-[11px] text-gray-600">${lbl2}</span>
+                                                <span class="font-bold text-indigo-700">${awayOdds}</span>
                                             </button>
-                                        ` : '<div class="flex-1"></div>'}
+                                        ` : `
+                                            <button
+                                                class="flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-md py-2 px-2 opacity-40 cursor-default"
+                                                disabled
+                                            >
+                                                <span class="text-[11px] text-gray-500">${lbl2}</span>
+                                                <span class="font-semibold text-gray-400">-</span>
+                                            </button>
+                                        `}
                                     </div>
                                 `;
                             }).join('')}
@@ -400,35 +499,34 @@ function renderMatches() {
             `;
         }
 
-        // 3) Ставки на точний рахунок
+        // ====== Точний рахунок (якщо зʼявиться з API) ======
         let correctScoreBlock = '';
         const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
         if (canBet && csArr.length > 0) {
-            // Фильтруем самые "адекватные" счета (до 3 голов каждой команды)
             const filtered = csArr.filter(cs => {
                 const parts = cs.score.split(':');
                 if (parts.length !== 2) return false;
                 const h = parseInt(parts[0], 10);
                 const a = parseInt(parts[1], 10);
                 return Number.isFinite(h) && Number.isFinite(a) && h <= 3 && a <= 3;
-            }).slice(0, 18); // максимум 18 вариантов
+            }).slice(0, 18);
 
             if (filtered.length > 0) {
                 const isOpen = !!(state.expanded.correctScore[m.id]);
                 correctScoreBlock = `
-                    <div class="mt-2">
+                    <div class="mt-3">
                         <button
-                            class="w-full flex justify-between items-center text-xs px-2 py-1 bg-gray-100 rounded"
+                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
                             onclick="toggleCorrectScore(${m.id})"
                         >
-                            <span class="font-medium">Ставки на точний рахунок</span>
+                            <span>Ставки на точний рахунок</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-1 grid grid-cols-3 gap-1 text-[11px]">
+                            <div class="mt-2 grid grid-cols-3 gap-1 text-[11px]">
                                 ${filtered.map(cs => `
                                     <button
-                                        class="bg-gray-50 rounded px-1 py-1"
+                                        class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
                                         onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})"
                                     >
                                         ${cs.score} (${cs.odds})
@@ -457,7 +555,7 @@ function renderMatches() {
                     <p class="font-bold text-lg">${m.away_team}</p>
                 </div>
             </div>
-            
+
             <div class="text-center text-sm text-gray-500">
                 📅 ${formatDate(m.match_date)}
             </div>
@@ -486,6 +584,7 @@ function renderMatches() {
                     </button>
                 </div>
 
+                ${doubleChanceRow}
                 ${totalsBlock}
                 ${handicapsBlock}
                 ${correctScoreBlock}
@@ -588,7 +687,7 @@ function renderLeaderboard() {
     return state.leaderboard.map((p, i) => {
         const isMe = state.user && p.username === state.user.telegram_username;
         const colors = ['bg-yellow-400 text-yellow-900', 'bg-gray-300 text-gray-700', 'bg-orange-400 text-orange-900', 'bg-gray-100 text-gray-600'];
-        
+
         return `
             <div class="bg-white rounded-lg shadow p-4 flex items-center gap-4 ${isMe ? 'border-2 border-red-500' : ''}">
                 <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[Math.min(i, 3)]}">
@@ -617,7 +716,7 @@ function renderBetModal() {
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeModal(event)">
             <div class="bg-white rounded-lg p-6 max-w-md w-full" onclick="event.stopPropagation()">
                 <h3 class="text-xl font-bold mb-4">Зробити ставку</h3>
-                
+
                 <div class="bg-gray-50 rounded p-3 mb-4">
                     <p class="text-sm text-gray-600">Матч</p>
                     <p class="font-bold">${match.home_team} vs ${match.away_team}</p>
@@ -791,7 +890,7 @@ async function init() {
 
         await loadUser();
         await loadMatches();
-        
+
         state.loading = false;
         render();
 
