@@ -19,6 +19,25 @@
         }
         .loading { animation: pulse 1.5s ease-in-out infinite; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* ===== FAB + Bottom sheet ===== */
+        .fab {
+            position: fixed;
+            right: 16px;
+            bottom: calc(env(safe-area-inset-bottom) + 84px); /* над нижнім меню */
+            z-index: 60;
+        }
+        .sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 70;
+        }
+        .sheet-panel {
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -62,6 +81,17 @@ const state = {
         totals: {},
         handicaps: {},
         correctScore: {}
+    },
+
+    // ✅ Referral UI state
+    referral: {
+        open: false,
+        tab: 'invite', // invite | mycodes
+        loading: false,
+        max: 10,
+        codes: [],
+        lastCode: null,
+        lastLink: null
     }
 };
 
@@ -111,6 +141,64 @@ async function loadMyBets() {
 
 async function loadLeaderboard() {
     state.leaderboard = await apiRequest('/api/leaderboard');
+}
+
+// ✅ Referral API
+async function loadReferralCodes() {
+    const res = await apiRequest('/api/referral/codes');
+    state.referral.max = res.max || 10;
+    state.referral.codes = Array.isArray(res.rows) ? res.rows : [];
+}
+
+async function createReferralCode() {
+    state.referral.loading = true;
+    render();
+    try {
+        const res = await apiRequest('/api/referral/create', { method: 'POST' });
+
+        if (res.ok === false) {
+            showError(res.error || 'Не вдалося створити код');
+            return;
+        }
+
+        if (res.limitReached) {
+            showError('Ліміт кодів досягнуто (10/10). Використайте існуючі.');
+        } else if (res.link) {
+            state.referral.lastCode = res.code;
+            state.referral.lastLink = res.link;
+            showSuccess('Інвайт-лінк створено ✅');
+            if (tg) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        await loadReferralCodes();
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
+}
+
+async function verifyReferralReward() {
+    state.referral.loading = true;
+    render();
+    try {
+        const res = await apiRequest('/api/referral/verify', { method: 'POST' });
+
+        if (res.ok && res.rewarded) {
+            showSuccess(`Бонус нараховано! +${res.pointsAdded} балів ✅`);
+        } else {
+            const reason = res.reason || res.error || 'no_reward';
+            if (reason === 'not_member') showError('Спочатку підпишіться на канал, потім натисніть ще раз.');
+            else if (reason === 'already_rewarded') showSuccess('Бонус уже був нарахований ✅');
+            else if (reason === 'no_referral') showError('У вас немає реферала для перевірки.');
+            else showError('Поки що бонус не нараховано.');
+        }
+
+        // оновимо юзера, щоб підтягнув referral_rewarded
+        await loadUser();
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
 }
 
 async function placeBet() {
@@ -234,6 +322,43 @@ function computeDoubleChanceOdds(match) {
     };
 }
 
+// ✅ Copy / Share helper
+async function copyText(text) {
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        showSuccess('Скопійовано ✅');
+        if (tg) tg.HapticFeedback.impactOccurred('light');
+    } catch (e) {
+        showError('Не вдалося скопіювати');
+    }
+}
+
+function shareLink(link) {
+    const text = 'Заходь у Ліверпульс та роби прогнози зі мною!';
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+
+    try {
+        if (tg && typeof tg.openTelegramLink === 'function') {
+            tg.openTelegramLink(shareUrl);
+        } else {
+            window.open(shareUrl, '_blank');
+        }
+    } catch (e) {
+        window.open(shareUrl, '_blank');
+    }
+}
+
 // ==========================================
 // РЕНДЕРИНГ
 // ==========================================
@@ -269,7 +394,6 @@ function renderMatches() {
         const homeLogo = getTeamLogo(m.home_team);
         const awayLogo = getTeamLogo(m.away_team);
 
-        // Завершений матч
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
@@ -301,7 +425,6 @@ function renderMatches() {
             `;
         }
 
-        // Статусный блок для upcoming/locked/live
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
@@ -319,7 +442,6 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // ====== Double Chance 1X / 12 / X2 ======
         const dc = canBet ? computeDoubleChanceOdds(m) : null;
         const doubleChanceRow = (canBet && dc) ? `
             <div class="grid grid-cols-3 gap-2 mt-2">
@@ -341,7 +463,7 @@ function renderMatches() {
             </div>
         ` : '';
 
-        // ====== Ставки на тотал (totals_lines) ======
+        // ====== Totals ======
         let totalsBlock = '';
         const totalsLines = m.totals_lines || null;
         if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
@@ -349,8 +471,6 @@ function renderMatches() {
                 .map(([pt, line]) => {
                     const v = parseFloat(pt);
                     if (!Number.isFinite(v)) return null;
-
-                    // только целые и половины (0.0 / 0.5); убираем 2.25, 2.75 и т.п.
                     if (!Number.isInteger(v * 2)) return null;
 
                     const overRaw = line && line.over != null ? Number(line.over) : null;
@@ -358,15 +478,9 @@ function renderMatches() {
 
                     const overOk = overRaw != null && overRaw >= 1.1;
                     const underOk = underRaw != null && underRaw >= 1.1;
-
                     if (!overOk && !underOk) return null;
 
-                    return {
-                        pt,
-                        v,
-                        over: overOk ? overRaw : null,
-                        under: underOk ? underRaw : null
-                    };
+                    return { pt, v, over: overOk ? overRaw : null, under: underOk ? underRaw : null };
                 })
                 .filter(row => row && (row.over || row.under))
                 .sort((a, b) => a.v - b.v);
@@ -376,10 +490,8 @@ function renderMatches() {
 
                 totalsBlock = `
                     <div class="mt-3">
-                        <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleTotals(${m.id})"
-                        >
+                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            onclick="toggleTotals(${m.id})">
                             <span>Ставки на тотал</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
@@ -390,33 +502,23 @@ function renderMatches() {
                                     const overDisabled = !row.over;
                                     return `
                                         <div class="grid grid-cols-2 gap-2 text-xs">
-                                            <button
-                                                ${underDisabled ? 'disabled' : ''}
+                                            <button ${underDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
-                                                    underDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-red-50 hover:bg-red-100 border border-red-200 active:scale-95'
+                                                    underDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
+                                                                  : 'bg-red-50 hover:bg-red-100 border border-red-200 active:scale-95'
                                                 } rounded-md py-2 px-2"
-                                                ${underDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"`}
-                                            >
+                                                ${underDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"`}>
                                                 <span class="text-[11px] text-gray-600">ТМ ${row.pt}</span>
-                                                <span class="font-bold ${underDisabled ? 'text-gray-400' : 'text-red-700'}">
-                                                    ${row.under ?? '-'}
-                                                </span>
+                                                <span class="font-bold ${underDisabled ? 'text-gray-400' : 'text-red-700'}">${row.under ?? '-'}</span>
                                             </button>
-                                            <button
-                                                ${overDisabled ? 'disabled' : ''}
+                                            <button ${overDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
-                                                    overDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-green-50 hover:bg-green-100 border border-green-200 active:scale-95'
+                                                    overDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
+                                                                 : 'bg-green-50 hover:bg-green-100 border border-green-200 active:scale-95'
                                                 } rounded-md py-2 px-2"
-                                                ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}
-                                            >
+                                                ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}>
                                                 <span class="text-[11px] text-gray-600">ТБ ${row.pt}</span>
-                                                <span class="font-bold ${overDisabled ? 'text-gray-400' : 'text-green-700'}">
-                                                    ${row.over ?? '-'}
-                                                </span>
+                                                <span class="font-bold ${overDisabled ? 'text-gray-400' : 'text-green-700'}">${row.over ?? '-'}</span>
                                             </button>
                                         </div>
                                     `;
@@ -428,29 +530,20 @@ function renderMatches() {
             }
         }
 
-        // ====== Ставки з форою (spread_lines) ======
+        // ====== Handicaps ======
         let handicapsBlock = '';
         const spreadLines = m.spread_lines || null;
-        if (
-            canBet &&
-            spreadLines &&
-            (spreadLines.home || spreadLines.away) &&
-            (Object.keys(spreadLines.home || {}).length > 0 ||
-             Object.keys(spreadLines.away || {}).length > 0)
+        if (canBet && spreadLines && (spreadLines.home || spreadLines.away) &&
+            (Object.keys(spreadLines.home || {}).length > 0 || Object.keys(spreadLines.away || {}).length > 0)
         ) {
             const homeMap = spreadLines.home || {};
             const awayMap = spreadLines.away || {};
 
-            const rawKeys = new Set([
-                ...Object.keys(homeMap),
-                ...Object.keys(awayMap)
-            ]);
-
+            const rawKeys = new Set([...Object.keys(homeMap), ...Object.keys(awayMap)]);
             let absPoints = Array.from(rawKeys)
               .map(k => parseFloat(k))
               .filter(v => Number.isFinite(v))
               .map(v => Math.abs(v))
-              // оставляем только целые и половинки (x.0 / x.5), но выкидываем 0.5
               .filter(v => Number.isInteger(v * 2) && Math.abs(v - 0.5) > 1e-9);
 
             absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
@@ -469,73 +562,42 @@ function renderMatches() {
               if (p === 0) {
                 homeOddsRaw = homeMap['0'] != null ? Number(homeMap['0']) : null;
                 awayOddsRaw = awayMap['0'] != null ? Number(awayMap['0']) : null;
-                lbl1 = 'Ф1 0';
-                lbl2 = 'Ф2 0';
-                sel1 = 'П1 (0)';
-                sel2 = 'П2 (0)';
+                lbl1 = 'Ф1 0'; lbl2 = 'Ф2 0';
+                sel1 = 'П1 (0)'; sel2 = 'П2 (0)';
               } else {
-                // ДВА возможных кейса:
-                // 1) Дом фаворит: Ф1 -p (homeMap[-p]) и Ф2 +p (awayMap[+p])
                 const homeMinus = homeMap[neg] != null ? Number(homeMap[neg]) : null;
                 const awayPlus  = awayMap[pos] != null ? Number(awayMap[pos]) : null;
 
-                // 2) Выезд фаворит: Ф1 +p (homeMap[+p]) и Ф2 -p (awayMap[-p])
                 const homePlus  = homeMap[pos] != null ? Number(homeMap[pos]) : null;
                 const awayMinus = awayMap[neg] != null ? Number(awayMap[neg]) : null;
 
-                const pairAExists = (homeMinus != null) || (awayPlus != null);
-                const pairBExists = (homePlus != null) || (awayMinus != null);
-
-                // выбираем ту пару, где больше данных
                 const scoreA = (homeMinus != null) + (awayPlus != null);
                 const scoreB = (homePlus != null) + (awayMinus != null);
 
-                if (pairAExists && (!pairBExists || scoreA >= scoreB)) {
-                  // Ф1 -p / Ф2 +p
-                  homeOddsRaw = homeMinus;
-                  awayOddsRaw = awayPlus;
-                  lbl1 = `Ф1 -${p}`;
-                  lbl2 = `Ф2 +${p}`;
-                  sel1 = `П1 (-${p})`;
-                  sel2 = `П2 (+${p})`;
-                } else if (pairBExists) {
-                  // Ф1 +p / Ф2 -p
-                  homeOddsRaw = homePlus;
-                  awayOddsRaw = awayMinus;
-                  lbl1 = `Ф1 +${p}`;
-                  lbl2 = `Ф2 -${p}`;
-                  sel1 = `П1 (+${p})`;
-                  sel2 = `П2 (-${p})`;
-                } else {
-                  return null;
-                }
+                if ((homeMinus != null || awayPlus != null) && (scoreA >= scoreB)) {
+                  homeOddsRaw = homeMinus; awayOddsRaw = awayPlus;
+                  lbl1 = `Ф1 -${p}`; lbl2 = `Ф2 +${p}`;
+                  sel1 = `П1 (-${p})`; sel2 = `П2 (+${p})`;
+                } else if (homePlus != null || awayMinus != null) {
+                  homeOddsRaw = homePlus; awayOddsRaw = awayMinus;
+                  lbl1 = `Ф1 +${p}`; lbl2 = `Ф2 -${p}`;
+                  sel1 = `П1 (+${p})`; sel2 = `П2 (-${p})`;
+                } else return null;
               }
 
               const hOk = homeOddsRaw != null && homeOddsRaw >= 1.1;
               const aOk = awayOddsRaw != null && awayOddsRaw >= 1.1;
               if (!hOk && !aOk) return null;
 
-              return {
-                point: p,
-                lbl1,
-                lbl2,
-                sel1,
-                sel2,
-                homeOdds: hOk ? homeOddsRaw : null,
-                awayOdds: aOk ? awayOddsRaw : null
-              };
+              return { point: p, lbl1, lbl2, sel1, sel2, homeOdds: hOk ? homeOddsRaw : null, awayOdds: aOk ? awayOddsRaw : null };
             }).filter(Boolean);
-
 
             if (rows.length > 0) {
                 const isOpen = !!(state.expanded.handicaps[m.id]);
-
                 handicapsBlock = `
                     <div class="mt-3">
-                        <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleHandicaps(${m.id})"
-                        >
+                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            onclick="toggleHandicaps(${m.id})">
                             <span>Ставки з форою</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
@@ -546,33 +608,23 @@ function renderMatches() {
                                     const aDisabled = !row.awayOdds;
                                     return `
                                         <div class="grid grid-cols-2 gap-2 text-xs">
-                                            <button
-                                                ${hDisabled ? 'disabled' : ''}
+                                            <button ${hDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
-                                                    hDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
+                                                    hDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
+                                                              : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
                                                 } py-2 px-2"
-                                                ${hDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel1}', ${row.homeOdds})"`}
-                                            >
+                                                ${hDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel1}', ${row.homeOdds})"`}>
                                                 <span class="text-[11px] text-gray-600">${row.lbl1}</span>
-                                                <span class="font-bold ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">
-                                                    ${row.homeOdds ?? '-'}
-                                                </span>
+                                                <span class="font-bold ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">${row.homeOdds ?? '-'}</span>
                                             </button>
-                                            <button
-                                                ${aDisabled ? 'disabled' : ''}
+                                            <button ${aDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
-                                                    aDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
+                                                    aDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
+                                                              : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
                                                 } py-2 px-2"
-                                                ${aDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel2}', ${row.awayOdds})"`}
-                                            >
+                                                ${aDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel2}', ${row.awayOdds})"`}>
                                                 <span class="text-[11px] text-gray-600">${row.lbl2}</span>
-                                                <span class="font-bold ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">
-                                                    ${row.awayOdds ?? '-'}
-                                                </span>
+                                                <span class="font-bold ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">${row.awayOdds ?? '-'}</span>
                                             </button>
                                         </div>
                                     `;
@@ -584,7 +636,7 @@ function renderMatches() {
             }
         }
 
-        // ====== Точний рахунок (якщо зʼявиться з API) ======
+        // ====== Correct score ======
         let correctScoreBlock = '';
         const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
         if (canBet && csArr.length > 0) {
@@ -600,20 +652,16 @@ function renderMatches() {
                 const isOpen = !!(state.expanded.correctScore[m.id]);
                 correctScoreBlock = `
                     <div class="mt-3">
-                        <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleCorrectScore(${m.id})"
-                        >
+                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            onclick="toggleCorrectScore(${m.id})">
                             <span>Ставки на точний рахунок</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
                             <div class="mt-2 grid grid-cols-3 gap-1 text-[11px]">
                                 ${filtered.map(cs => `
-                                    <button
-                                        class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
-                                        onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})"
-                                    >
+                                    <button class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
+                                        onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})">
                                         ${cs.score} (${cs.odds})
                                     </button>
                                 `).join('')}
@@ -624,7 +672,6 @@ function renderMatches() {
             }
         }
 
-        // Карточка для майбутніх / live / locked матчів
         return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
@@ -705,19 +752,14 @@ function renderBets() {
         };
 
         const payout =
-            b.status === 'won'
-                ? b.potential_win
-                : b.status === 'refund'
-                ? b.stake
-                : 0;
+            b.status === 'won' ? b.potential_win :
+            b.status === 'refund' ? b.stake : 0;
 
         const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
         const label = labels[b.status] || 'Статус';
 
         const m = b.match || null;
-        const title = m
-            ? `${m.home_team} – ${m.away_team}`
-            : `Матч #${b.match_id}`;
+        const title = m ? `${m.home_team} – ${m.away_team}` : `Матч #${b.match_id}`;
         const comp = m?.competition || null;
         const matchDate = m?.match_date ? formatDate(m.match_date) : null;
         const score =
@@ -843,6 +885,164 @@ function renderBetModal() {
     `;
 }
 
+// ✅ FAB + Referral Sheet
+function renderReferralFab() {
+    if (!state.user) return '';
+
+    const needsVerify = !!(state.user.referrer_id && state.user.referral_rewarded === false);
+
+    return `
+        <div class="fab">
+            <button onclick="openReferral()"
+                class="relative w-14 h-14 rounded-full shadow-xl bg-gradient-to-br from-red-600 to-red-700 text-white flex items-center justify-center active:scale-95">
+                <span class="text-2xl">🎁</span>
+                ${needsVerify ? `
+                    <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-red-700 text-[11px] font-bold flex items-center justify-center border border-red-200">
+                        !
+                    </span>
+                ` : ''}
+            </button>
+        </div>
+    `;
+}
+
+function renderReferralSheet() {
+    if (!state.referral.open) return '';
+
+    const tab = state.referral.tab;
+    const loading = state.referral.loading;
+
+    const inviteHint = `
+        <div class="text-sm text-gray-600">
+            <p class="font-semibold text-gray-800 mb-1">Запроси друга і отримай бонус</p>
+            <p>Коли друг зайде по твоєму лінку та підпишеться на канал — тобі нарахують <span class="font-bold text-red-600">+50</span> балів.</p>
+        </div>
+    `;
+
+    const lastLinkBlock = state.referral.lastLink ? `
+        <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <p class="text-xs text-gray-500 mb-1">Останній інвайт-лінк</p>
+            <div class="text-[12px] font-mono break-all text-gray-800">${state.referral.lastLink}</div>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <button onclick="copyRef('${state.referral.lastLink}')"
+                    class="bg-white border border-gray-200 rounded-md py-2 text-sm active:scale-95">📋 Копіювати</button>
+                <button onclick="shareRef('${state.referral.lastLink}')"
+                    class="bg-red-600 text-white rounded-md py-2 text-sm active:scale-95">🚀 Поділитись</button>
+            </div>
+        </div>
+    ` : '';
+
+    const verifyBlock = (state.user && state.user.referrer_id && state.user.referral_rewarded === false) ? `
+        <div class="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p class="text-sm text-yellow-800 font-semibold">У вас є запрошення 🎯</p>
+            <p class="text-xs text-yellow-700 mt-1">Якщо ви вже підписались на канал — натисніть, щоб нарахувати бонус запрошувачу.</p>
+            <button onclick="refVerify()"
+                class="mt-2 w-full bg-yellow-600 hover:bg-yellow-700 text-white rounded-md py-2 text-sm font-semibold active:scale-95">
+                ✅ Перевірити підписку
+            </button>
+        </div>
+    ` : '';
+
+    const codesList = `
+        <div class="mt-3 space-y-2">
+            ${state.referral.codes.length === 0 ? `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 text-center">
+                    У вас поки немає кодів. Створіть перший у вкладці Запросити.
+                </div>
+            ` : state.referral.codes.map(r => {
+                const isClaimed = !!r.invited_id;
+                const isRewarded = !!r.rewarded;
+                const status = isRewarded
+                    ? `<span class="text-[11px] px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Нагороджено</span>`
+                    : isClaimed
+                        ? `<span class="text-[11px] px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold">Зайнято</span>`
+                        : `<span class="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">Вільний</span>`;
+
+                return `
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="text-xs text-gray-500">Код</p>
+                                <p class="font-mono text-sm text-gray-900 break-all">${r.code}</p>
+                            </div>
+                            <div>${status}</div>
+                        </div>
+
+                        <div class="mt-2 text-xs text-gray-500 break-all">
+                            ${r.link}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mt-2">
+                            <button onclick="copyRef('${r.link}')" class="bg-gray-100 hover:bg-gray-200 rounded-md py-2 text-sm active:scale-95">📋 Копіювати</button>
+                            <button onclick="shareRef('${r.link}')" class="bg-red-600 text-white rounded-md py-2 text-sm active:scale-95">🚀 Поділитись</button>
+                        </div>
+
+                        <div class="mt-2 text-[11px] text-gray-400">
+                            ${r.claimed_at ? `Бронь: ${formatDate(r.claimed_at)}` : 'Ще не використано'}
+                            ${r.rewarded_at ? ` • Бонус: ${formatDate(r.rewarded_at)}` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    return `
+        <div class="sheet">
+            <div class="fixed inset-0 bg-black/40" onclick="closeReferral()"></div>
+
+            <div class="sheet-panel bg-white shadow-2xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <p class="text-lg font-bold">🎁 Запрошення</p>
+                        <p class="text-xs text-gray-500">Коди: ${state.referral.codes.length}/${state.referral.max}</p>
+                    </div>
+                    <button onclick="closeReferral()"
+                        class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95">✕</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button onclick="refTab('invite')"
+                        class="py-2 rounded-lg text-sm font-semibold active:scale-95 ${
+                            tab === 'invite' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'
+                        }">
+                        Запросити
+                    </button>
+                    <button onclick="refTab('mycodes')"
+                        class="py-2 rounded-lg text-sm font-semibold active:scale-95 ${
+                            tab === 'mycodes' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'
+                        }">
+                        Мої коди
+                    </button>
+                </div>
+
+                ${loading ? `
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-600">
+                        Завантаження...
+                    </div>
+                ` : ''}
+
+                ${tab === 'invite' ? `
+                    ${inviteHint}
+
+                    <button onclick="refCreate()"
+                        class="mt-3 w-full bg-red-600 hover:bg-red-700 text-white rounded-lg py-3 font-semibold active:scale-95">
+                        ➕ Створити інвайт-лінк
+                    </button>
+
+                    ${lastLinkBlock}
+                    ${verifyBlock}
+                ` : `
+                    ${codesList}
+                `}
+
+                <div class="h-2"></div>
+                <div class="safe-bottom"></div>
+            </div>
+        </div>
+    `;
+}
+
 function renderNav() {
     const pages = [
         { id: 'matches', icon: '📊', label: 'Матчі' },
@@ -851,7 +1051,7 @@ function renderNav() {
     ];
 
     return `
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom">
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom z-40">
             <div class="grid grid-cols-3 gap-2">
                 ${pages.map(p => `
                     <button onclick="changePage('${p.id}')"
@@ -906,7 +1106,10 @@ function render() {
     app.innerHTML = `
         ${renderHeader()}
         <div class="p-4 pb-24">${content}</div>
+
         ${renderNav()}
+        ${renderReferralFab()}
+        ${renderReferralSheet()}
         ${renderBetModal()}
     `;
 }
@@ -949,7 +1152,6 @@ window.setStake = (amt) => {
     if (tg) tg.HapticFeedback.impactOccurred('light');
 };
 
-// Тогглы для випадаючих списків
 window.toggleTotals = (matchId) => {
     state.expanded.totals[matchId] = !state.expanded.totals[matchId];
     render();
@@ -963,6 +1165,57 @@ window.toggleHandicaps = (matchId) => {
 window.toggleCorrectScore = (matchId) => {
     state.expanded.correctScore[matchId] = !state.expanded.correctScore[matchId];
     render();
+};
+
+// ✅ Referral globals
+window.openReferral = async () => {
+    state.referral.open = true;
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+    try {
+        state.referral.loading = true;
+        render();
+        await loadReferralCodes();
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
+};
+
+window.closeReferral = () => {
+    state.referral.open = false;
+    render();
+};
+
+window.refTab = async (tab) => {
+    state.referral.tab = tab;
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+    // при входе в "Мої коди" — обновим список
+    if (tab === 'mycodes') {
+        state.referral.loading = true;
+        render();
+        try { await loadReferralCodes(); }
+        finally { state.referral.loading = false; render(); }
+    } else {
+        render();
+    }
+};
+
+window.refCreate = async () => {
+    if (tg) tg.HapticFeedback.impactOccurred('medium');
+    await createReferralCode();
+};
+
+window.copyRef = async (link) => {
+    await copyText(link);
+};
+
+window.shareRef = (link) => {
+    shareLink(link);
+};
+
+window.refVerify = async () => {
+    if (tg) tg.HapticFeedback.impactOccurred('medium');
+    await verifyReferralReward();
 };
 
 // ==========================================
