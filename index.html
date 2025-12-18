@@ -1,56 +1,30 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ліверпульс</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            overflow-x: hidden;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .loading { animation: pulse 1.5s ease-in-out infinite; }
-        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-
-        /* ===== FAB + Bottom sheet ===== */
-        .fab {
-            position: fixed;
-            right: 16px;
-            bottom: calc(env(safe-area-inset-bottom) + 84px); /* над нижнім меню */
-            z-index: 60;
-        }
-        .sheet {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 70;
-        }
-        .sheet-panel {
-            border-top-left-radius: 18px;
-            border-top-right-radius: 18px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ліверпульс</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { overflow-x: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .loading { animation: pulse 1.5s ease-in-out infinite; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
 </head>
 <body class="bg-gray-50">
 <div id="app"></div>
 
 <script>
 // ==========================================
-// КОНФІГУРАЦІЯ
+// CONFIG
 // ==========================================
 const CONFIG = {
-    API_URL: 'https://liverpulse-worker.liverpulse.workers.dev',
-    USE_TELEGRAM: true,
-    LOGO_BASE: 'https://your-domain-or-gh-pages-url/logos'
+  API_URL: 'https://liverpulse-worker.liverpulse.workers.dev',
+  USE_TELEGRAM: true,
+  LOGO_BASE: 'https://your-domain-or-gh-pages-url/logos',
+  BOT_USERNAME: 'liverpulse_bet_bot'
 };
 
 // ==========================================
@@ -58,1198 +32,649 @@ const CONFIG = {
 // ==========================================
 const tg = window.Telegram?.WebApp;
 if (tg && CONFIG.USE_TELEGRAM) {
-    tg.ready();
-    tg.expand();
-    tg.enableClosingConfirmation();
-    tg.setHeaderColor('#dc2626');
-    tg.setBackgroundColor('#f9fafb');
+  tg.ready();
+  tg.expand();
+  tg.enableClosingConfirmation();
+  tg.setHeaderColor('#dc2626');
+  tg.setBackgroundColor('#f9fafb');
 }
 
 // ==========================================
-// СТАН
+// STATE
 // ==========================================
 const state = {
-    user: null,
-    matches: [],
-    myBets: [],
-    leaderboard: [],
-    currentPage: 'matches',
-    loading: true,
-    selectedMatch: null,
-    betSlip: { matchId: 0, type: '', selection: '', odds: 0, stake: 50 },
-    expanded: {
-        totals: {},
-        handicaps: {},
-        correctScore: {}
-    },
+  user: null,
+  matches: [],
+  myBets: [],
+  leaderboard: [],
+  currentPage: 'matches',
+  loading: true,
+  selectedMatch: null,
+  betSlip: { matchId: 0, type: '', selection: '', odds: 0, stake: 50 },
+  expanded: { totals: {}, handicaps: {}, correctScore: {} },
 
-    // ✅ Referral UI state
-    referral: {
-        open: false,
-        tab: 'invite', // invite | mycodes
-        loading: false,
-        max: 10,
-        codes: [],
-        lastCode: null,
-        lastLink: null
-    }
+  referral: {
+    loading: false,
+    link: null,
+    code: null,
+    max: 10,
+    used: 0,
+    remaining: 10,
+    rows: []
+  }
 };
 
 // ==========================================
 // API
 // ==========================================
 async function apiRequest(endpoint, options = {}) {
-    try {
-        const headers = {
-            'Content-Type': 'application/json',
-            ...options.headers
-        };
+  try {
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (tg && CONFIG.USE_TELEGRAM) headers['Authorization'] = `Bearer ${tg.initData}`;
 
-        if (tg && CONFIG.USE_TELEGRAM) {
-            headers['Authorization'] = `Bearer ${tg.initData}`;
-        }
+    const response = await fetch(`${CONFIG.API_URL}${endpoint}`, { ...options, headers });
 
-        const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
-            ...options,
-            headers
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Помилка');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('API Error:', error);
-        showError(error.message);
-        throw error;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Помилка');
     }
+    return await response.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    showError(error.message);
+    throw error;
+  }
 }
 
-async function loadUser() {
-    state.user = await apiRequest('/api/user');
-}
+async function loadUser(){ state.user = await apiRequest('/api/user'); }
+async function loadMatches(){ state.matches = await apiRequest('/api/matches'); }
+async function loadMyBets(){ state.myBets = await apiRequest('/api/my-bets'); }
+async function loadLeaderboard(){ state.leaderboard = await apiRequest('/api/leaderboard'); }
 
-async function loadMatches() {
-    state.matches = await apiRequest('/api/matches');
-}
-
-async function loadMyBets() {
-    state.myBets = await apiRequest('/api/my-bets');
-}
-
-async function loadLeaderboard() {
-    state.leaderboard = await apiRequest('/api/leaderboard');
-}
-
-// ✅ Referral API
-async function loadReferralCodes() {
-    const res = await apiRequest('/api/referral/codes');
+async function loadReferralSummary() {
+  state.referral.loading = true; render();
+  try {
+    const res = await apiRequest('/api/referral');
+    state.referral.link = res.link;
+    state.referral.code = res.code;
     state.referral.max = res.max || 10;
-    state.referral.codes = Array.isArray(res.rows) ? res.rows : [];
+    state.referral.used = res.used || 0;
+    state.referral.remaining = res.remaining ?? Math.max(0, state.referral.max - state.referral.used);
+    state.referral.rows = Array.isArray(res.rows) ? res.rows : [];
+  } finally {
+    state.referral.loading = false; render();
+  }
 }
 
-async function createReferralCode() {
-    state.referral.loading = true;
-    render();
-    try {
-        const res = await apiRequest('/api/referral/create', { method: 'POST' });
-
-        if (res.ok === false) {
-            showError(res.error || 'Не вдалося створити код');
-            return;
-        }
-
-        if (res.limitReached) {
-            showError('Ліміт кодів досягнуто (10/10). Використайте існуючі.');
-        } else if (res.link) {
-            state.referral.lastCode = res.code;
-            state.referral.lastLink = res.link;
-            showSuccess('Інвайт-лінк створено ✅');
-            if (tg) tg.HapticFeedback.notificationOccurred('success');
-        }
-
-        await loadReferralCodes();
-    } finally {
-        state.referral.loading = false;
-        render();
-    }
+async function getOrCreateReferralLink() {
+  state.referral.loading = true; render();
+  try {
+    const res = await apiRequest('/api/referral/link', { method: 'POST' });
+    state.referral.link = res.link;
+    state.referral.code = res.code;
+    state.referral.max = res.max || state.referral.max || 10;
+    showSuccess('Ваша інвайт-лінка готова ✅');
+    await loadReferralSummary();
+  } finally {
+    state.referral.loading = false; render();
+  }
 }
 
 async function verifyReferralReward() {
-    state.referral.loading = true;
-    render();
-    try {
-        const res = await apiRequest('/api/referral/verify', { method: 'POST' });
-
-        if (res.ok && res.rewarded) {
-            showSuccess(`Бонус нараховано! +${res.pointsAdded} балів ✅`);
-        } else {
-            const reason = res.reason || res.error || 'no_reward';
-            if (reason === 'not_member') showError('Спочатку підпишіться на канал, потім натисніть ще раз.');
-            else if (reason === 'already_rewarded') showSuccess('Бонус уже був нарахований ✅');
-            else if (reason === 'no_referral') showError('У вас немає реферала для перевірки.');
-            else showError('Поки що бонус не нараховано.');
-        }
-
-        // оновимо юзера, щоб підтягнув referral_rewarded
-        await loadUser();
-    } finally {
-        state.referral.loading = false;
-        render();
+  state.referral.loading = true; render();
+  try {
+    const res = await apiRequest('/api/referral/verify', { method: 'POST' });
+    if (res.ok && res.rewarded) {
+      showSuccess(`Бонус нараховано! +${res.pointsAdded || 50} балів ✅`);
+    } else {
+      const reason = res.reason || res.error || 'no_reward';
+      if (reason === 'not_member') showError('Спочатку підпишіться на канал, потім натисніть ще раз.');
+      else if (reason === 'already_rewarded') showSuccess('Бонус уже був нарахований ✅');
+      else if (reason === 'no_referral') showError('У вас немає реферала для перевірки.');
+      else showError('Поки що бонус не нараховано.');
     }
+    await loadUser();
+  } finally {
+    state.referral.loading = false; render();
+  }
 }
 
 async function placeBet() {
-    const { matchId, type, selection, odds, stake } = state.betSlip;
+  const { matchId, type, selection, odds, stake } = state.betSlip;
 
-    if (stake < 10) {
-        showError('Мінімум 10 балів');
-        return;
-    }
+  if (stake < 10) return showError('Мінімум 10 балів');
+  if (stake > state.user.points) return showError('Недостатньо балів!');
 
-    if (stake > state.user.points) {
-        showError('Недостатньо балів!');
-        return;
-    }
+  try {
+    const result = await apiRequest('/api/bet', {
+      method: 'POST',
+      body: JSON.stringify({ matchId, betType: type, selection, odds, stake })
+    });
 
-    try {
-        const result = await apiRequest('/api/bet', {
-            method: 'POST',
-            body: JSON.stringify({ matchId, betType: type, selection, odds, stake })
-        });
+    state.user.points = result.newBalance;
+    state.selectedMatch = null;
+    state.currentPage = 'bets';
 
-        state.user.points = result.newBalance;
-        state.selectedMatch = null;
-        state.currentPage = 'bets';
+    await loadMyBets();
+    showSuccess('Ставку прийнято! ✅');
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
 
-        await loadMyBets();
-        showSuccess('Ставку прийнято! ✅');
-        if (tg) tg.HapticFeedback.notificationOccurred('success');
-
-        render();
-    } catch (error) {
-        console.error('Bet error:', error);
-    }
+    render();
+  } catch (error) {
+    console.error('Bet error:', error);
+  }
 }
 
 // ==========================================
-// УТИЛІТИ
+// UTILS
 // ==========================================
 function showError(msg) {
-    try {
-        if (tg && typeof tg.showAlert === 'function') {
-            tg.showAlert(msg);
-            if (tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
-                tg.HapticFeedback.notificationOccurred('error');
-            }
-        } else {
-            alert(msg);
-        }
-    } catch (e) {
-        console.error('showError failed:', e);
-        alert(msg);
-    }
+  try {
+    if (tg && typeof tg.showAlert === 'function') {
+      tg.showAlert(msg);
+      tg.HapticFeedback?.notificationOccurred?.('error');
+    } else alert(msg);
+  } catch { alert(msg); }
 }
 
 function showSuccess(msg) {
-    try {
-        if (tg && typeof tg.showAlert === 'function') {
-            tg.showAlert(msg);
-            if (tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
-                tg.HapticFeedback.notificationOccurred('success');
-            }
-        } else {
-            alert(msg);
-        }
-    } catch (e) {
-        console.error('showSuccess failed:', e);
-        alert(msg);
-    }
+  try {
+    if (tg && typeof tg.showAlert === 'function') {
+      tg.showAlert(msg);
+      tg.HapticFeedback?.notificationOccurred?.('success');
+    } else alert(msg);
+  } catch { alert(msg); }
 }
 
 function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleString('uk-UA', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+  const date = new Date(dateStr);
+  return date.toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// Логотипы команд
 function teamSlug(name) {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
-
 function getTeamLogo(name) {
-    if (!CONFIG.LOGO_BASE) return null;
-    if (!name) return null;
-    const slug = teamSlug(name);
-    return `${CONFIG.LOGO_BASE}/${slug}.png`;
+  if (!CONFIG.LOGO_BASE || !name) return null;
+  return `${CONFIG.LOGO_BASE}/${teamSlug(name)}.png`;
 }
 
-// Расчёт коэффициентов на 1X / 12 / X2
 function computeDoubleChanceOdds(match) {
-    const oh = Number(match.odds_home || 0);
-    const od = Number(match.odds_draw || 0);
-    const oa = Number(match.odds_away || 0);
+  const oh = Number(match.odds_home || 0);
+  const od = Number(match.odds_draw || 0);
+  const oa = Number(match.odds_away || 0);
+  if (!oh || !od || !oa) return null;
 
-    if (!oh || !od || !oa) return null;
+  const pHomeRaw = 1 / oh, pDrawRaw = 1 / od, pAwayRaw = 1 / oa;
+  const overround = pHomeRaw + pDrawRaw + pAwayRaw;
 
-    const pHomeRaw = 1 / oh;
-    const pDrawRaw = 1 / od;
-    const pAwayRaw = 1 / oa;
-    const overround = pHomeRaw + pDrawRaw + pAwayRaw;
+  const pHome = pHomeRaw / overround, pDraw = pDrawRaw / overround, pAway = pAwayRaw / overround;
+  const margin = 1.05;
+  const makeOdd = (p) => p > 0 ? Number((1 / (p * margin)).toFixed(2)) : null;
 
-    const pHome = pHomeRaw / overround;
-    const pDraw = pDrawRaw / overround;
-    const pAway = pAwayRaw / overround;
-
-    const margin = 1.05;
-
-    const makeOdd = (p) => p > 0 ? Number((1 / (p * margin)).toFixed(2)) : null;
-
-    return {
-        '1X': makeOdd(pHome + pDraw),
-        '12': makeOdd(pHome + pAway),
-        'X2': makeOdd(pDraw + pAway)
-    };
+  return { '1X': makeOdd(pHome + pDraw), '12': makeOdd(pHome + pAway), 'X2': makeOdd(pDraw + pAway) };
 }
 
-// ✅ Copy / Share helper
 async function copyText(text) {
-    try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-        } else {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.left = '-9999px';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-        }
-        showSuccess('Скопійовано ✅');
-        if (tg) tg.HapticFeedback.impactOccurred('light');
-    } catch (e) {
-        showError('Не вдалося скопіювати');
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
     }
+    showSuccess('Скопійовано ✅');
+    tg?.HapticFeedback?.impactOccurred?.('light');
+  } catch {
+    showError('Не вдалося скопіювати');
+  }
 }
 
 function shareLink(link) {
-    const text = 'Заходь у Ліверпульс та роби прогнози зі мною!';
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
-
-    try {
-        if (tg && typeof tg.openTelegramLink === 'function') {
-            tg.openTelegramLink(shareUrl);
-        } else {
-            window.open(shareUrl, '_blank');
-        }
-    } catch (e) {
-        window.open(shareUrl, '_blank');
-    }
+  const text = 'Заходь у Ліверпульс та роби прогнози зі мною!';
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+  try {
+    if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
+    else window.open(shareUrl, '_blank');
+  } catch { window.open(shareUrl, '_blank'); }
 }
 
 // ==========================================
-// РЕНДЕРИНГ
+// RENDER
 // ==========================================
 function renderHeader() {
-    return `
-        <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 sticky top-0 z-10 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-xl font-bold">⚽ Ліверпульс</h1>
-                    <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm opacity-90">Баланс</p>
-                    <p class="text-2xl font-bold">${state.user?.points || 0}</p>
-                </div>
-            </div>
+  return `
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-bold">⚽ Ліверпульс</h1>
+          <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
         </div>
-    `;
+        <div class="text-right">
+          <p class="text-sm opacity-90">Баланс</p>
+          <p class="text-2xl font-bold">${state.user?.points || 0}</p>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderMatches() {
-    if (state.matches.length === 0) {
-        return `
-            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
-                <p class="text-4xl mb-2">📅</p>
-                <p>Поки немає матчів</p>
-                <p class="text-sm">Матчі з'являться автоматично</p>
+  if (state.matches.length === 0) {
+    return `
+      <div class="bg-white rounded-lg p-8 text-center text-gray-500">
+        <p class="text-4xl mb-2">📅</p>
+        <p>Поки немає матчів</p>
+        <p class="text-sm">Матчі з'являться автоматично</p>
+      </div>
+    `;
+  }
+
+  return state.matches.map(m => {
+    const homeLogo = getTeamLogo(m.home_team);
+    const awayLogo = getTeamLogo(m.away_team);
+
+    if (m.status === 'finished') {
+      return `
+        <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2 flex-1 justify-center">
+              ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+              <p class="font-bold text-lg">${m.home_team}</p>
             </div>
-        `;
+            <div class="px-4 text-2xl font-bold text-red-700">
+              ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
+            </div>
+            <div class="flex items-center gap-2 flex-1 justify-center">
+              ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+              <p class="font-bold text-lg">${m.away_team}</p>
+            </div>
+          </div>
+          <div class="text-center text-sm text-gray-500">📅 ${formatDate(m.match_date)}</div>
+          ${m.competition ? `<div class="text-center text-xs text-gray-400 mt-1">🏆 ${m.competition}</div>` : ''}
+          <div class="text-center text-sm font-semibold text-red-700 mt-1">Матч завершено</div>
+        </div>
+      `;
     }
 
-    return state.matches.map(m => {
-        const homeLogo = getTeamLogo(m.home_team);
-        const awayLogo = getTeamLogo(m.away_team);
+    let statusBlock = '';
+    if (m.status === 'locked') statusBlock = `<div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm mt-2">🔒 Ставки закриті (матч скоро почнеться)</div>`;
+    if (m.status === 'live') statusBlock = `<div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-sm mt-2">🟢 Матч триває, ставки закриті</div>`;
 
-        if (m.status === 'finished') {
-            return `
-                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2 flex-1 justify-center">
-                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold text-lg">${m.home_team}</p>
-                        </div>
-                        <div class="px-4 text-2xl font-bold text-red-700">
-                            ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
-                        </div>
-                        <div class="flex items-center gap-2 flex-1 justify-center">
-                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold text-lg">${m.away_team}</p>
-                        </div>
-                    </div>
-                    <div class="text-center text-sm text-gray-500">
-                        📅 ${formatDate(m.match_date)}
-                    </div>
-                    ${m.competition ? `
-                        <div class="text-center text-xs text-gray-400 mt-1">
-                            🏆 ${m.competition}
-                        </div>
-                    ` : ''}
-                    <div class="text-center text-sm font-semibold text-red-700 mt-1">
-                        Матч завершено
-                    </div>
-                </div>
-            `;
-        }
+    const canBet = m.status === 'upcoming';
+    const dc = canBet ? computeDoubleChanceOdds(m) : null;
+    const doubleChanceRow = (canBet && dc) ? `
+      <div class="grid grid-cols-3 gap-2 mt-2">
+        <button onclick="openBet(${m.id}, '1X2', '1X', ${dc['1X']})" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+          <p class="text-xs text-gray-600">1X</p><p class="font-bold text-slate-700">${dc['1X']}</p>
+        </button>
+        <button onclick="openBet(${m.id}, '1X2', '12', ${dc['12']})" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+          <p class="text-xs text-gray-600">12</p><p class="font-bold text-slate-700">${dc['12']}</p>
+        </button>
+        <button onclick="openBet(${m.id}, '1X2', 'X2', ${dc['X2']})" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
+          <p class="text-xs text-gray-600">X2</p><p class="font-bold text-slate-700">${dc['X2']}</p>
+        </button>
+      </div>
+    ` : '';
 
-        let statusBlock = '';
-        if (m.status === 'locked') {
-            statusBlock = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm mt-2">
-                    🔒 Ставки закриті (матч скоро почнеться)
-                </div>
-            `;
-        } else if (m.status === 'live') {
-            statusBlock = `
-                <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-sm mt-2">
-                    🟢 Матч триває, ставки закриті
-                </div>
-            `;
-        }
-
-        const canBet = m.status === 'upcoming';
-
-        const dc = canBet ? computeDoubleChanceOdds(m) : null;
-        const doubleChanceRow = (canBet && dc) ? `
-            <div class="grid grid-cols-3 gap-2 mt-2">
-                <button onclick="openBet(${m.id}, '1X2', '1X', ${dc['1X']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">1X</p>
-                    <p class="font-bold text-slate-700">${dc['1X']}</p>
-                </button>
-                <button onclick="openBet(${m.id}, '1X2', '12', ${dc['12']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">12</p>
-                    <p class="font-bold text-slate-700">${dc['12']}</p>
-                </button>
-                <button onclick="openBet(${m.id}, '1X2', 'X2', ${dc['X2']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">X2</p>
-                    <p class="font-bold text-slate-700">${dc['X2']}</p>
-                </button>
-            </div>
-        ` : '';
-
-        // ====== Totals ======
-        let totalsBlock = '';
-        const totalsLines = m.totals_lines || null;
-        if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
-            let rows = Object.entries(totalsLines)
-                .map(([pt, line]) => {
-                    const v = parseFloat(pt);
-                    if (!Number.isFinite(v)) return null;
-                    if (!Number.isInteger(v * 2)) return null;
-
-                    const overRaw = line && line.over != null ? Number(line.over) : null;
-                    const underRaw = line && line.under != null ? Number(line.under) : null;
-
-                    const overOk = overRaw != null && overRaw >= 1.1;
-                    const underOk = underRaw != null && underRaw >= 1.1;
-                    if (!overOk && !underOk) return null;
-
-                    return { pt, v, over: overOk ? overRaw : null, under: underOk ? underRaw : null };
-                })
-                .filter(row => row && (row.over || row.under))
-                .sort((a, b) => a.v - b.v);
-
-            if (rows.length > 0) {
-                const isOpen = !!(state.expanded.totals[m.id]);
-
-                totalsBlock = `
-                    <div class="mt-3">
-                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleTotals(${m.id})">
-                            <span>Ставки на тотал</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
-                        </button>
-                        ${isOpen ? `
-                            <div class="mt-2 space-y-2">
-                                ${rows.map(row => {
-                                    const underDisabled = !row.under;
-                                    const overDisabled = !row.over;
-                                    return `
-                                        <div class="grid grid-cols-2 gap-2 text-xs">
-                                            <button ${underDisabled ? 'disabled' : ''}
-                                                class="flex flex-col items-center justify-center ${
-                                                    underDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                                  : 'bg-red-50 hover:bg-red-100 border border-red-200 active:scale-95'
-                                                } rounded-md py-2 px-2"
-                                                ${underDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"`}>
-                                                <span class="text-[11px] text-gray-600">ТМ ${row.pt}</span>
-                                                <span class="font-bold ${underDisabled ? 'text-gray-400' : 'text-red-700'}">${row.under ?? '-'}</span>
-                                            </button>
-                                            <button ${overDisabled ? 'disabled' : ''}
-                                                class="flex flex-col items-center justify-center ${
-                                                    overDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                                 : 'bg-green-50 hover:bg-green-100 border border-green-200 active:scale-95'
-                                                } rounded-md py-2 px-2"
-                                                ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}>
-                                                <span class="text-[11px] text-gray-600">ТБ ${row.pt}</span>
-                                                <span class="font-bold ${overDisabled ? 'text-gray-400' : 'text-green-700'}">${row.over ?? '-'}</span>
-                                            </button>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-        }
-
-        // ====== Handicaps ======
-        let handicapsBlock = '';
-        const spreadLines = m.spread_lines || null;
-        if (canBet && spreadLines && (spreadLines.home || spreadLines.away) &&
-            (Object.keys(spreadLines.home || {}).length > 0 || Object.keys(spreadLines.away || {}).length > 0)
-        ) {
-            const homeMap = spreadLines.home || {};
-            const awayMap = spreadLines.away || {};
-
-            const rawKeys = new Set([...Object.keys(homeMap), ...Object.keys(awayMap)]);
-            let absPoints = Array.from(rawKeys)
-              .map(k => parseFloat(k))
-              .filter(v => Number.isFinite(v))
-              .map(v => Math.abs(v))
-              .filter(v => Number.isInteger(v * 2) && Math.abs(v - 0.5) > 1e-9);
-
-            absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
-
-            const hasZero = homeMap['0'] != null || awayMap['0'] != null;
-            const points = hasZero ? [0, ...absPoints.filter(p => p !== 0)] : absPoints;
-
-            let rows = points.map(p => {
-              const pos = String(p);
-              const neg = String(-p);
-
-              let lbl1, lbl2, sel1, sel2;
-              let homeOddsRaw = null;
-              let awayOddsRaw = null;
-
-              if (p === 0) {
-                homeOddsRaw = homeMap['0'] != null ? Number(homeMap['0']) : null;
-                awayOddsRaw = awayMap['0'] != null ? Number(awayMap['0']) : null;
-                lbl1 = 'Ф1 0'; lbl2 = 'Ф2 0';
-                sel1 = 'П1 (0)'; sel2 = 'П2 (0)';
-              } else {
-                const homeMinus = homeMap[neg] != null ? Number(homeMap[neg]) : null;
-                const awayPlus  = awayMap[pos] != null ? Number(awayMap[pos]) : null;
-
-                const homePlus  = homeMap[pos] != null ? Number(homeMap[pos]) : null;
-                const awayMinus = awayMap[neg] != null ? Number(awayMap[neg]) : null;
-
-                const scoreA = (homeMinus != null) + (awayPlus != null);
-                const scoreB = (homePlus != null) + (awayMinus != null);
-
-                if ((homeMinus != null || awayPlus != null) && (scoreA >= scoreB)) {
-                  homeOddsRaw = homeMinus; awayOddsRaw = awayPlus;
-                  lbl1 = `Ф1 -${p}`; lbl2 = `Ф2 +${p}`;
-                  sel1 = `П1 (-${p})`; sel2 = `П2 (+${p})`;
-                } else if (homePlus != null || awayMinus != null) {
-                  homeOddsRaw = homePlus; awayOddsRaw = awayMinus;
-                  lbl1 = `Ф1 +${p}`; lbl2 = `Ф2 -${p}`;
-                  sel1 = `П1 (+${p})`; sel2 = `П2 (-${p})`;
-                } else return null;
-              }
-
-              const hOk = homeOddsRaw != null && homeOddsRaw >= 1.1;
-              const aOk = awayOddsRaw != null && awayOddsRaw >= 1.1;
-              if (!hOk && !aOk) return null;
-
-              return { point: p, lbl1, lbl2, sel1, sel2, homeOdds: hOk ? homeOddsRaw : null, awayOdds: aOk ? awayOddsRaw : null };
-            }).filter(Boolean);
-
-            if (rows.length > 0) {
-                const isOpen = !!(state.expanded.handicaps[m.id]);
-                handicapsBlock = `
-                    <div class="mt-3">
-                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleHandicaps(${m.id})">
-                            <span>Ставки з форою</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
-                        </button>
-                        ${isOpen ? `
-                            <div class="mt-2 space-y-2">
-                                ${rows.map(row => {
-                                    const hDisabled = !row.homeOdds;
-                                    const aDisabled = !row.awayOdds;
-                                    return `
-                                        <div class="grid grid-cols-2 gap-2 text-xs">
-                                            <button ${hDisabled ? 'disabled' : ''}
-                                                class="flex flex-col items-center justify-center ${
-                                                    hDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                              : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
-                                                } py-2 px-2"
-                                                ${hDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel1}', ${row.homeOdds})"`}>
-                                                <span class="text-[11px] text-gray-600">${row.lbl1}</span>
-                                                <span class="font-bold ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">${row.homeOdds ?? '-'}</span>
-                                            </button>
-                                            <button ${aDisabled ? 'disabled' : ''}
-                                                class="flex flex-col items-center justify-center ${
-                                                    aDisabled ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                              : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
-                                                } py-2 px-2"
-                                                ${aDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel2}', ${row.awayOdds})"`}>
-                                                <span class="text-[11px] text-gray-600">${row.lbl2}</span>
-                                                <span class="font-bold ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">${row.awayOdds ?? '-'}</span>
-                                            </button>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-        }
-
-        // ====== Correct score ======
-        let correctScoreBlock = '';
-        const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
-        if (canBet && csArr.length > 0) {
-            const filtered = csArr.filter(cs => {
-                const parts = cs.score.split(':');
-                if (parts.length !== 2) return false;
-                const h = parseInt(parts[0], 10);
-                const a = parseInt(parts[1], 10);
-                return Number.isFinite(h) && Number.isFinite(a) && h <= 3 && a <= 3;
-            }).slice(0, 18);
-
-            if (filtered.length > 0) {
-                const isOpen = !!(state.expanded.correctScore[m.id]);
-                correctScoreBlock = `
-                    <div class="mt-3">
-                        <button class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
-                            onclick="toggleCorrectScore(${m.id})">
-                            <span>Ставки на точний рахунок</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
-                        </button>
-                        ${isOpen ? `
-                            <div class="mt-2 grid grid-cols-3 gap-1 text-[11px]">
-                                ${filtered.map(cs => `
-                                    <button class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
-                                        onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})">
-                                        ${cs.score} (${cs.odds})
-                                    </button>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-        }
-
-        return `
-        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2 flex-1 justify-center">
-                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold text-lg">${m.home_team}</p>
-                </div>
-                <div class="px-4">
-                    <p class="text-gray-400">VS</p>
-                </div>
-                <div class="flex items-center gap-2 flex-1 justify-center">
-                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold text-lg">${m.away_team}</p>
-                </div>
-            </div>
-
-            <div class="text-center text-sm text-gray-500">
-                📅 ${formatDate(m.match_date)}
-            </div>
-            ${m.competition ? `
-                <div class="text-center text-xs text-gray-400 mt-1 mb-2">
-                    🏆 ${m.competition}
-                </div>
-            ` : `<div class="mt-2"></div>`}
-
-            ${canBet ? `
-                <div class="grid grid-cols-3 gap-2">
-                    <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
-                        class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П1</p>
-                        <p class="font-bold text-green-700">${m.odds_home}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
-                        class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">X</p>
-                        <p class="font-bold text-blue-700">${m.odds_draw}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
-                        class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П2</p>
-                        <p class="font-bold text-red-700">${m.odds_away}</p>
-                    </button>
-                </div>
-
-                ${doubleChanceRow}
-                ${totalsBlock}
-                ${handicapsBlock}
-                ${correctScoreBlock}
-            ` : statusBlock}
+    return `
+      <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2 flex-1 justify-center">
+            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+            <p class="font-bold text-lg">${m.home_team}</p>
+          </div>
+          <div class="px-4"><p class="text-gray-400">VS</p></div>
+          <div class="flex items-center gap-2 flex-1 justify-center">
+            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+            <p class="font-bold text-lg">${m.away_team}</p>
+          </div>
         </div>
-        `;
-    }).join('');
+
+        <div class="text-center text-sm text-gray-500">📅 ${formatDate(m.match_date)}</div>
+        ${m.competition ? `<div class="text-center text-xs text-gray-400 mt-1 mb-2">🏆 ${m.competition}</div>` : `<div class="mt-2"></div>`}
+
+        ${canBet ? `
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})" class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
+              <p class="text-xs text-gray-600">П1</p><p class="font-bold text-green-700">${m.odds_home}</p>
+            </button>
+            <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})" class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
+              <p class="text-xs text-gray-600">X</p><p class="font-bold text-blue-700">${m.odds_draw}</p>
+            </button>
+            <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})" class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
+              <p class="text-xs text-gray-600">П2</p><p class="font-bold text-red-700">${m.odds_away}</p>
+            </button>
+          </div>
+          ${doubleChanceRow}
+        ` : statusBlock}
+      </div>
+    `;
+  }).join('');
 }
 
 function renderBets() {
-    if (state.myBets.length === 0) {
-        return `
-            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
-                <p class="text-4xl mb-2">💰</p>
-                <p>У вас немає ставок</p>
-                <p class="text-sm">Зробіть першу!</p>
-            </div>
-        `;
-    }
+  if (state.myBets.length === 0) {
+    return `
+      <div class="bg-white rounded-lg p-8 text-center text-gray-500">
+        <p class="text-4xl mb-2">💰</p>
+        <p>У вас немає ставок</p>
+        <p class="text-sm">Зробіть першу!</p>
+      </div>
+    `;
+  }
 
-    return state.myBets.map(b => {
-        const colors = {
-            pending: 'border-blue-500 bg-blue-50 text-blue-700',
-            won: 'border-green-500 bg-green-50 text-green-700',
-            lost: 'border-red-500 bg-red-50 text-red-700',
-            refund: 'border-yellow-500 bg-yellow-50 text-yellow-700'
-        };
-        const labels = {
-            pending: 'Очікування',
-            won: 'Виграш ✅',
-            lost: 'Програш ❌',
-            refund: 'Повернення'
-        };
-
-        const payout =
-            b.status === 'won' ? b.potential_win :
-            b.status === 'refund' ? b.stake : 0;
-
-        const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
-        const label = labels[b.status] || 'Статус';
-
-        const m = b.match || null;
-        const title = m ? `${m.home_team} – ${m.away_team}` : `Матч #${b.match_id}`;
-        const comp = m?.competition || null;
-        const matchDate = m?.match_date ? formatDate(m.match_date) : null;
-        const score =
-            m && typeof m.home_score === 'number' && typeof m.away_score === 'number'
-                ? `${m.home_score}:${m.away_score}`
-                : null;
-
-        return `
-            <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colorClass}">
-                <div class="flex justify-between items-center mb-2 gap-3">
-                    <div>
-                        <p class="font-bold text-lg">${title}</p>
-                        ${comp ? `<p class="text-xs text-gray-500 mt-1">🏆 ${comp}</p>` : ''}
-                        <p class="text-sm text-gray-600 mt-1">${b.bet_type} - ${b.selection}</p>
-                    </div>
-                    <span class="inline-flex items-center justify-center h-9 px-3 ${colorClass} rounded text-xs font-bold whitespace-nowrap">
-                        ${label}
-                    </span>
-                </div>
-
-                ${score ? `
-                    <p class="text-sm text-gray-600 mb-1">
-                        Рахунок: <span class="font-bold">${score}</span>
-                    </p>
-                ` : ''}
-
-                <div class="grid grid-cols-3 gap-2 text-sm mt-1">
-                    <div>
-                        <p class="text-gray-500">Ставка</p>
-                        <p class="font-bold">${b.stake}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Коеф.</p>
-                        <p class="font-bold">${b.odds}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Виграш</p>
-                        <p class="font-bold text-green-600">${payout}</p>
-                    </div>
-                </div>
-
-                <p class="text-xs text-gray-400 mt-2">
-                    Ставка: ${formatDate(b.created_at)}
-                    ${matchDate ? ` • Матч: ${matchDate}` : ''}
-                </p>
-            </div>
-        `;
-    }).join('');
+  return state.myBets.map(b => `
+    <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+      <p class="font-bold">${b.match?.home_team || 'Матч'} – ${b.match?.away_team || ''}</p>
+      <p class="text-sm text-gray-600 mt-1">${b.bet_type} - ${b.selection}</p>
+      <div class="grid grid-cols-3 gap-2 text-sm mt-3">
+        <div><p class="text-gray-500">Ставка</p><p class="font-bold">${b.stake}</p></div>
+        <div><p class="text-gray-500">Коеф.</p><p class="font-bold">${b.odds}</p></div>
+        <div><p class="text-gray-500">Статус</p><p class="font-bold">${b.status}</p></div>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">${formatDate(b.created_at)}</p>
+    </div>
+  `).join('');
 }
 
 function renderLeaderboard() {
-    return state.leaderboard.map((p, i) => {
-        const isMe = state.user && p.username === state.user.telegram_username;
-        const colors = ['bg-yellow-400 text-yellow-900', 'bg-gray-300 text-gray-700', 'bg-orange-400 text-orange-900', 'bg-gray-100 text-gray-600'];
+  return state.leaderboard.map(p => `
+    <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+      <div>
+        <p class="font-bold">${p.username}</p>
+        <p class="text-sm text-gray-600">Успішність: ${p.winRate}%</p>
+      </div>
+      <div class="text-right">
+        <p class="font-bold text-xl text-red-600">${p.points}</p>
+      </div>
+    </div>
+  `).join('');
+}
 
-        return `
-            <div class="bg-white rounded-lg shadow p-4 flex items-center gap-4 ${isMe ? 'border-2 border-red-500' : ''}">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[Math.min(i, 3)]}">
-                    ${p.rank}
-                </div>
-                <div class="flex-1">
-                    <p class="font-bold">${p.username}</p>
-                    <p class="text-sm text-gray-600">Успішність: ${p.winRate}%</p>
-                </div>
-                <div class="text-right">
-                    <p class="font-bold text-xl text-red-600">${p.points}</p>
-                    <p class="text-xs text-gray-500">балів</p>
-                </div>
+function renderReferralPage() {
+  const loading = state.referral.loading;
+
+  const hasLink = !!state.referral.link;
+  const needsVerify = !!(state.user?.referrer_id && state.user?.referral_rewarded === false);
+
+  return `
+    <div class="space-y-4">
+
+      <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-lg font-bold">🎁 Запрошення</p>
+            <p class="text-sm text-gray-600 mt-1">
+              Одна інвайт-лінка на акаунт. Ліміт: <span class="font-bold">${state.referral.max}</span> друзів.
+            </p>
+          </div>
+          <button onclick="refRefresh()" class="bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 text-sm active:scale-95">
+            🔄 Оновити
+          </button>
+        </div>
+
+        <div class="mt-4">
+          <p class="text-xs text-gray-500 mb-1">Ваша інвайт-лінка</p>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div class="text-[12px] font-mono break-all ${hasLink ? 'text-gray-900' : 'text-gray-400'}">
+              ${hasLink ? state.referral.link : 'Ще не створено'}
             </div>
-        `;
-    }).join('');
+            <div class="grid grid-cols-3 gap-2 mt-3">
+              <button onclick="refCreateLink()" class="col-span-1 bg-red-600 hover:bg-red-700 text-white rounded-md py-2 text-sm font-semibold active:scale-95">
+                ${hasLink ? 'Показати' : 'Створити'}
+              </button>
+              <button ${hasLink ? '' : 'disabled'} onclick="refCopy()" class="col-span-1 bg-white border border-gray-200 rounded-md py-2 text-sm active:scale-95 ${hasLink ? '' : 'opacity-40'}">
+                📋 Копіювати
+              </button>
+              <button ${hasLink ? '' : 'disabled'} onclick="refShare()" class="col-span-1 bg-white border border-gray-200 rounded-md py-2 text-sm active:scale-95 ${hasLink ? '' : 'opacity-40'}">
+                🚀 Шер
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-4">
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500">Використано</p>
+            <p class="text-xl font-bold">${state.referral.used}</p>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500">Залишилось</p>
+            <p class="text-xl font-bold">${state.referral.remaining}</p>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500">Бонус</p>
+            <p class="text-xl font-bold">+50</p>
+          </div>
+        </div>
+
+        ${needsVerify ? `
+          <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p class="text-sm font-semibold text-yellow-800">У вас є запрошення</p>
+            <p class="text-xs text-yellow-700 mt-1">Підпишіться на канал і натисніть, щоб нарахувати бонус запрошувачу.</p>
+            <button onclick="refVerify()" class="mt-2 w-full bg-yellow-600 hover:bg-yellow-700 text-white rounded-md py-2 text-sm font-semibold active:scale-95">
+              ✅ Перевірити підписку
+            </button>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+        <p class="font-bold mb-2">Список запрошених</p>
+
+        ${loading ? `
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-600">Завантаження...</div>
+        ` : ''}
+
+        ${(!loading && state.referral.rows.length === 0) ? `
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-600">
+            Поки що ніхто не приєднався по вашій лінці.
+          </div>
+        ` : ''}
+
+        <div class="space-y-2">
+          ${state.referral.rows.map(r => {
+            const badge = r.rewarded
+              ? `<span class="text-[11px] px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Бонус видано</span>`
+              : `<span class="text-[11px] px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold">Очікуємо підписку</span>`;
+            return `
+              <div class="border border-gray-200 rounded-lg p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-xs text-gray-500">Користувач</p>
+                    <p class="font-semibold truncate">@${r.invited_username}</p>
+                    <p class="text-[11px] text-gray-400 mt-1">Зайшов: ${formatDate(r.claimed_at)}</p>
+                  </div>
+                  <div>${badge}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+    </div>
+  `;
 }
 
 function renderBetModal() {
-    if (!state.selectedMatch) return '';
+  if (!state.selectedMatch) return '';
+  const match = state.matches.find(m => m.id === state.selectedMatch);
+  if (!match) return '';
 
-    const match = state.matches.find(m => m.id === state.selectedMatch);
-    if (!match) return '';
-
-    return `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeModal(event)">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full" onclick="event.stopPropagation()">
-                <h3 class="text-xl font-bold mb-4">Зробити ставку</h3>
-
-                <div class="bg-gray-50 rounded p-3 mb-4">
-                    <p class="text-sm text-gray-600">Матч</p>
-                    <p class="font-bold">${match.home_team} vs ${match.away_team}</p>
-                    <p class="text-sm text-gray-600 mt-2">Вибір</p>
-                    <p class="font-bold">${state.betSlip.selection}</p>
-                    <p class="text-sm text-gray-600 mt-2">Коефіцієнт</p>
-                    <p class="font-bold text-lg text-green-600">${state.betSlip.odds}</p>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Сума ставки (бали)</label>
-                    <input id="stake" type="number" min="10" max="${state.user.points}" value="${state.betSlip.stake}"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 text-lg"
-                        oninput="updateStake(this.value)">
-                    <div class="flex gap-2 mt-2">
-                        ${[50, 100, 250, 500].map(a => `
-                            <button onclick="setStake(${a})" class="flex-1 bg-gray-100 hover:bg-gray-200 rounded py-1 text-sm active:scale-95">${a}</button>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="bg-blue-50 rounded p-3 mb-4">
-                    <p class="text-sm text-gray-600">Можливий виграш</p>
-                    <p class="text-2xl font-bold text-blue-600" id="win">${(state.betSlip.stake * state.betSlip.odds).toFixed(0)}</p>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="state.selectedMatch = null; render()"
-                        class="flex-1 bg-gray-200 hover:bg-gray-300 font-semibold py-3 rounded-lg active:scale-95">
-                        Скасувати
-                    </button>
-                    <button onclick="placeBet()"
-                        class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg active:scale-95">
-                        Поставити
-                    </button>
-                </div>
-            </div>
+  return `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">Зробити ставку</h3>
+        <div class="bg-gray-50 rounded p-3 mb-4">
+          <p class="text-sm text-gray-600">Матч</p>
+          <p class="font-bold">${match.home_team} vs ${match.away_team}</p>
+          <p class="text-sm text-gray-600 mt-2">Вибір</p>
+          <p class="font-bold">${state.betSlip.selection}</p>
+          <p class="text-sm text-gray-600 mt-2">Коефіцієнт</p>
+          <p class="font-bold text-lg text-green-600">${state.betSlip.odds}</p>
         </div>
-    `;
-}
 
-// ✅ FAB + Referral Sheet
-function renderReferralFab() {
-    if (!state.user) return '';
-
-    const needsVerify = !!(state.user.referrer_id && state.user.referral_rewarded === false);
-
-    return `
-        <div class="fab">
-            <button onclick="openReferral()"
-                class="relative w-14 h-14 rounded-full shadow-xl bg-gradient-to-br from-red-600 to-red-700 text-white flex items-center justify-center active:scale-95">
-                <span class="text-2xl">🎁</span>
-                ${needsVerify ? `
-                    <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-red-700 text-[11px] font-bold flex items-center justify-center border border-red-200">
-                        !
-                    </span>
-                ` : ''}
-            </button>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Сума ставки (бали)</label>
+          <input id="stake" type="number" min="10" max="${state.user.points}" value="${state.betSlip.stake}"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 text-lg"
+            oninput="updateStake(this.value)">
         </div>
-    `;
-}
 
-function renderReferralSheet() {
-    if (!state.referral.open) return '';
-
-    const tab = state.referral.tab;
-    const loading = state.referral.loading;
-
-    const inviteHint = `
-        <div class="text-sm text-gray-600">
-            <p class="font-semibold text-gray-800 mb-1">Запроси друга і отримай бонус</p>
-            <p>Коли друг зайде по твоєму лінку та підпишеться на канал — тобі нарахують <span class="font-bold text-red-600">+50</span> балів.</p>
+        <div class="bg-blue-50 rounded p-3 mb-4">
+          <p class="text-sm text-gray-600">Можливий виграш</p>
+          <p class="text-2xl font-bold text-blue-600" id="win">${(state.betSlip.stake * state.betSlip.odds).toFixed(0)}</p>
         </div>
-    `;
 
-    const lastLinkBlock = state.referral.lastLink ? `
-        <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <p class="text-xs text-gray-500 mb-1">Останній інвайт-лінк</p>
-            <div class="text-[12px] font-mono break-all text-gray-800">${state.referral.lastLink}</div>
-            <div class="grid grid-cols-2 gap-2 mt-2">
-                <button onclick="copyRef('${state.referral.lastLink}')"
-                    class="bg-white border border-gray-200 rounded-md py-2 text-sm active:scale-95">📋 Копіювати</button>
-                <button onclick="shareRef('${state.referral.lastLink}')"
-                    class="bg-red-600 text-white rounded-md py-2 text-sm active:scale-95">🚀 Поділитись</button>
-            </div>
+        <div class="flex gap-3">
+          <button onclick="state.selectedMatch = null; render()" class="flex-1 bg-gray-200 hover:bg-gray-300 font-semibold py-3 rounded-lg active:scale-95">Скасувати</button>
+          <button onclick="placeBet()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg active:scale-95">Поставити</button>
         </div>
-    ` : '';
-
-    const verifyBlock = (state.user && state.user.referrer_id && state.user.referral_rewarded === false) ? `
-        <div class="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p class="text-sm text-yellow-800 font-semibold">У вас є запрошення 🎯</p>
-            <p class="text-xs text-yellow-700 mt-1">Якщо ви вже підписались на канал — натисніть, щоб нарахувати бонус запрошувачу.</p>
-            <button onclick="refVerify()"
-                class="mt-2 w-full bg-yellow-600 hover:bg-yellow-700 text-white rounded-md py-2 text-sm font-semibold active:scale-95">
-                ✅ Перевірити підписку
-            </button>
-        </div>
-    ` : '';
-
-    const codesList = `
-        <div class="mt-3 space-y-2">
-            ${state.referral.codes.length === 0 ? `
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 text-center">
-                    У вас поки немає кодів. Створіть перший у вкладці Запросити.
-                </div>
-            ` : state.referral.codes.map(r => {
-                const isClaimed = !!r.invited_id;
-                const isRewarded = !!r.rewarded;
-                const status = isRewarded
-                    ? `<span class="text-[11px] px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Нагороджено</span>`
-                    : isClaimed
-                        ? `<span class="text-[11px] px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold">Зайнято</span>`
-                        : `<span class="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">Вільний</span>`;
-
-                return `
-                    <div class="bg-white border border-gray-200 rounded-lg p-3">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="min-w-0">
-                                <p class="text-xs text-gray-500">Код</p>
-                                <p class="font-mono text-sm text-gray-900 break-all">${r.code}</p>
-                            </div>
-                            <div>${status}</div>
-                        </div>
-
-                        <div class="mt-2 text-xs text-gray-500 break-all">
-                            ${r.link}
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2 mt-2">
-                            <button onclick="copyRef('${r.link}')" class="bg-gray-100 hover:bg-gray-200 rounded-md py-2 text-sm active:scale-95">📋 Копіювати</button>
-                            <button onclick="shareRef('${r.link}')" class="bg-red-600 text-white rounded-md py-2 text-sm active:scale-95">🚀 Поділитись</button>
-                        </div>
-
-                        <div class="mt-2 text-[11px] text-gray-400">
-                            ${r.claimed_at ? `Бронь: ${formatDate(r.claimed_at)}` : 'Ще не використано'}
-                            ${r.rewarded_at ? ` • Бонус: ${formatDate(r.rewarded_at)}` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-
-    return `
-        <div class="sheet">
-            <div class="fixed inset-0 bg-black/40" onclick="closeReferral()"></div>
-
-            <div class="sheet-panel bg-white shadow-2xl p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <p class="text-lg font-bold">🎁 Запрошення</p>
-                        <p class="text-xs text-gray-500">Коди: ${state.referral.codes.length}/${state.referral.max}</p>
-                    </div>
-                    <button onclick="closeReferral()"
-                        class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95">✕</button>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <button onclick="refTab('invite')"
-                        class="py-2 rounded-lg text-sm font-semibold active:scale-95 ${
-                            tab === 'invite' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'
-                        }">
-                        Запросити
-                    </button>
-                    <button onclick="refTab('mycodes')"
-                        class="py-2 rounded-lg text-sm font-semibold active:scale-95 ${
-                            tab === 'mycodes' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'
-                        }">
-                        Мої коди
-                    </button>
-                </div>
-
-                ${loading ? `
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-600">
-                        Завантаження...
-                    </div>
-                ` : ''}
-
-                ${tab === 'invite' ? `
-                    ${inviteHint}
-
-                    <button onclick="refCreate()"
-                        class="mt-3 w-full bg-red-600 hover:bg-red-700 text-white rounded-lg py-3 font-semibold active:scale-95">
-                        ➕ Створити інвайт-лінк
-                    </button>
-
-                    ${lastLinkBlock}
-                    ${verifyBlock}
-                ` : `
-                    ${codesList}
-                `}
-
-                <div class="h-2"></div>
-                <div class="safe-bottom"></div>
-            </div>
-        </div>
-    `;
+      </div>
+    </div>
+  `;
 }
 
 function renderNav() {
-    const pages = [
-        { id: 'matches', icon: '📊', label: 'Матчі' },
-        { id: 'bets', icon: '💰', label: 'Ставки' },
-        { id: 'leaderboard', icon: '🏆', label: 'Рейтинг' }
-    ];
+  const pages = [
+    { id: 'matches', icon: '📊', label: 'Матчі' },
+    { id: 'bets', icon: '💰', label: 'Ставки' },
+    { id: 'leaderboard', icon: '🏆', label: 'Рейтинг' },
+    { id: 'referral', icon: '🎁', label: 'Запрош' }
+  ];
 
-    return `
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom z-40">
-            <div class="grid grid-cols-3 gap-2">
-                ${pages.map(p => `
-                    <button onclick="changePage('${p.id}')"
-                        class="flex flex-col items-center py-2 rounded-lg active:scale-95 ${
-                            state.currentPage === p.id ? 'bg-red-50 text-red-600' : 'text-gray-600'
-                        }">
-                        <span class="text-2xl mb-1">${p.icon}</span>
-                        <span class="text-xs font-medium">${p.label}</span>
-                    </button>
-                `).join('')}
-            </div>
-        </div>
-    `;
+  return `
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom z-40">
+      <div class="grid grid-cols-4 gap-2">
+        ${pages.map(p => `
+          <button onclick="changePage('${p.id}')"
+            class="flex flex-col items-center py-2 rounded-lg active:scale-95 ${
+              state.currentPage === p.id ? 'bg-red-50 text-red-600' : 'text-gray-600'
+            }">
+            <span class="text-2xl mb-1">${p.icon}</span>
+            <span class="text-xs font-medium">${p.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function render() {
-    const app = document.getElementById('app');
+  const app = document.getElementById('app');
 
-    if (state.loading) {
-        app.innerHTML = `
-            <div class="flex items-center justify-center min-h-screen">
-                <div class="text-center">
-                    <div class="loading text-6xl mb-4">⚽</div>
-                    <p class="text-gray-600">Завантаження...</p>
-                </div>
-            </div>
-        `;
-        return;
-    }
-
-    let content = '';
-    if (state.currentPage === 'matches') {
-        content = `
-            <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 text-white mb-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm opacity-90">Ваш баланс</p>
-                        <p class="text-3xl font-bold">${state.user.points}</p>
-                    </div>
-                    <div class="text-5xl">🏆</div>
-                </div>
-            </div>
-            <h2 class="text-xl font-bold mb-4">⏰ Майбутні матчі</h2>
-            <div class="space-y-4">${renderMatches()}</div>
-        `;
-    } else if (state.currentPage === 'bets') {
-        content = `<h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2><div class="space-y-4">${renderBets()}</div>`;
-    } else if (state.currentPage === 'leaderboard') {
-        content = `<h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2><div class="space-y-4">${renderLeaderboard()}</div>`;
-    }
-
+  if (state.loading) {
     app.innerHTML = `
-        ${renderHeader()}
-        <div class="p-4 pb-24">${content}</div>
-
-        ${renderNav()}
-        ${renderReferralFab()}
-        ${renderReferralSheet()}
-        ${renderBetModal()}
+      <div class="flex items-center justify-center min-h-screen">
+        <div class="text-center">
+          <div class="loading text-6xl mb-4">⚽</div>
+          <p class="text-gray-600">Завантаження...</p>
+        </div>
+      </div>
     `;
+    return;
+  }
+
+  let content = '';
+  if (state.currentPage === 'matches') {
+    content = `
+      <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 text-white mb-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm opacity-90">Ваш баланс</p>
+            <p class="text-3xl font-bold">${state.user.points}</p>
+          </div>
+          <div class="text-5xl">🏆</div>
+        </div>
+      </div>
+      <h2 class="text-xl font-bold mb-4">⏰ Майбутні матчі</h2>
+      <div class="space-y-4">${renderMatches()}</div>
+    `;
+  } else if (state.currentPage === 'bets') {
+    content = `<h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2><div class="space-y-4">${renderBets()}</div>`;
+  } else if (state.currentPage === 'leaderboard') {
+    content = `<h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2><div class="space-y-4">${renderLeaderboard()}</div>`;
+  } else if (state.currentPage === 'referral') {
+    content = renderReferralPage();
+  }
+
+  app.innerHTML = `
+    ${renderHeader()}
+    <div class="p-4 pb-24">${content}</div>
+    ${renderNav()}
+    ${renderBetModal()}
+  `;
 }
 
 // ==========================================
-// ГЛОБАЛЬНІ ФУНКЦІЇ
+// GLOBALS
 // ==========================================
 window.changePage = async (page) => {
-    state.currentPage = page;
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-    if (page === 'bets') await loadMyBets();
-    if (page === 'leaderboard') await loadLeaderboard();
-    render();
+  state.currentPage = page;
+  tg?.HapticFeedback?.impactOccurred?.('light');
+
+  if (page === 'bets') await loadMyBets();
+  if (page === 'leaderboard') await loadLeaderboard();
+  if (page === 'referral') await loadReferralSummary();
+
+  render();
 };
 
 window.openBet = (matchId, type, selection, odds) => {
-    state.selectedMatch = matchId;
-    state.betSlip = { matchId, type, selection, odds, stake: 50 };
-    if (tg) tg.HapticFeedback.impactOccurred('medium');
-    render();
+  state.selectedMatch = matchId;
+  state.betSlip = { matchId, type, selection, odds, stake: 50 };
+  tg?.HapticFeedback?.impactOccurred?.('medium');
+  render();
 };
 
 window.closeModal = (e) => {
-    if (e.target === e.currentTarget) {
-        state.selectedMatch = null;
-        render();
-    }
+  if (e.target === e.currentTarget) { state.selectedMatch = null; render(); }
 };
 
 window.updateStake = (val) => {
-    state.betSlip.stake = parseInt(val) || 0;
-    const win = (state.betSlip.stake * state.betSlip.odds).toFixed(0);
-    document.getElementById('win').textContent = win;
+  state.betSlip.stake = parseInt(val) || 0;
+  const win = (state.betSlip.stake * state.betSlip.odds).toFixed(0);
+  document.getElementById('win').textContent = win;
 };
 
-window.setStake = (amt) => {
-    state.betSlip.stake = amt;
-    document.getElementById('stake').value = amt;
-    updateStake(amt);
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-};
-
-window.toggleTotals = (matchId) => {
-    state.expanded.totals[matchId] = !state.expanded.totals[matchId];
-    render();
-};
-
-window.toggleHandicaps = (matchId) => {
-    state.expanded.handicaps[matchId] = !state.expanded.handicaps[matchId];
-    render();
-};
-
-window.toggleCorrectScore = (matchId) => {
-    state.expanded.correctScore[matchId] = !state.expanded.correctScore[matchId];
-    render();
-};
-
-// ✅ Referral globals
-window.openReferral = async () => {
-    state.referral.open = true;
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-    try {
-        state.referral.loading = true;
-        render();
-        await loadReferralCodes();
-    } finally {
-        state.referral.loading = false;
-        render();
-    }
-};
-
-window.closeReferral = () => {
-    state.referral.open = false;
-    render();
-};
-
-window.refTab = async (tab) => {
-    state.referral.tab = tab;
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-    // при входе в "Мої коди" — обновим список
-    if (tab === 'mycodes') {
-        state.referral.loading = true;
-        render();
-        try { await loadReferralCodes(); }
-        finally { state.referral.loading = false; render(); }
-    } else {
-        render();
-    }
-};
-
-window.refCreate = async () => {
-    if (tg) tg.HapticFeedback.impactOccurred('medium');
-    await createReferralCode();
-};
-
-window.copyRef = async (link) => {
-    await copyText(link);
-};
-
-window.shareRef = (link) => {
-    shareLink(link);
-};
-
-window.refVerify = async () => {
-    if (tg) tg.HapticFeedback.impactOccurred('medium');
-    await verifyReferralReward();
-};
+// Referral actions
+window.refRefresh = async () => await loadReferralSummary();
+window.refCreateLink = async () => await getOrCreateReferralLink();
+window.refCopy = async () => state.referral.link && copyText(state.referral.link);
+window.refShare = () => state.referral.link && shareLink(state.referral.link);
+window.refVerify = async () => await verifyReferralReward();
 
 // ==========================================
-// ІНІЦІАЛІЗАЦІЯ
+// INIT
 // ==========================================
 async function init() {
-    try {
-        state.loading = true;
-        render();
+  try {
+    state.loading = true; render();
 
-        await loadUser();
-        await loadMatches();
+    await loadUser();
+    await loadMatches();
 
-        state.loading = false;
-        render();
-
-    } catch (error) {
-        console.error('Init error:', error);
-        state.loading = false;
-        document.getElementById('app').innerHTML = `
-            <div class="flex items-center justify-center min-h-screen p-4">
-                <div class="text-center">
-                    <p class="text-6xl mb-4">❌</p>
-                    <p class="text-xl font-bold mb-2">Помилка</p>
-                    <p class="text-gray-600 mb-4">${error.message}</p>
-                    <button onclick="location.reload()" class="bg-red-600 text-white px-6 py-2 rounded-lg">
-                        Спробувати знову
-                    </button>
-                </div>
-            </div>
-        `;
-    }
+    state.loading = false; render();
+  } catch (error) {
+    console.error('Init error:', error);
+    state.loading = false;
+    document.getElementById('app').innerHTML = `
+      <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="text-center">
+          <p class="text-6xl mb-4">❌</p>
+          <p class="text-xl font-bold mb-2">Помилка</p>
+          <p class="text-gray-600 mb-4">${error.message}</p>
+          <button onclick="location.reload()" class="bg-red-600 text-white px-6 py-2 rounded-lg">
+            Спробувати знову
+          </button>
+        </div>
+      </div>
+    `;
+  }
 }
-
 init();
 </script>
 </body>
