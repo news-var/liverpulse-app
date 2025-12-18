@@ -19,6 +19,9 @@
         }
         .loading { animation: pulse 1.5s ease-in-out infinite; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* ✅ NEW: чтобы кнопка не перекрывалась safe-area на айфонах */
+        .safe-fab { bottom: calc(5rem + env(safe-area-inset-bottom)); } /* 5rem ~ место над нижним навбаром */
     </style>
 </head>
 <body class="bg-gray-50">
@@ -62,6 +65,17 @@ const state = {
         totals: {},
         handicaps: {},
         correctScore: {}
+    },
+
+    // ✅ NEW: рефералки (добавлено, остальное не трогал)
+    referralModalOpen: false,
+    referral: {
+        loading: false,
+        link: null,
+        used: 0,
+        remaining: 10,
+        max: 10,
+        rows: []
     }
 };
 
@@ -867,6 +881,220 @@ function renderNav() {
     `;
 }
 
+/* ==========================================================
+   ✅ NEW: РЕФЕРАЛКА (кнопка + модалка + логика)
+   НИЧЕГО старого не менял — только добавил новое.
+   ========================================================== */
+
+function renderReferralFab() {
+    return `
+        <button
+            onclick="openReferralModal()"
+            class="fixed right-4 safe-fab z-40 w-14 h-14 rounded-full bg-red-600 text-white shadow-lg flex items-center justify-center active:scale-95"
+            title="Реферали"
+        >
+            🎁
+        </button>
+    `;
+}
+
+function renderReferralModal() {
+    if (!state.referralModalOpen) return '';
+
+    const r = state.referral || {};
+    const used = Number(r.used || 0);
+    const remaining = Number(r.remaining ?? 10);
+    const max = Number(r.max ?? 10);
+    const link = r.link || null;
+
+    const rows = Array.isArray(r.rows) ? r.rows : [];
+    const list = rows.length ? rows.map(x => {
+        const invitedId = x.invited_id != null ? String(x.invited_id) : '...';
+        const rewarded = !!x.rewarded;
+        return `
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                <div class="min-w-0">
+                    <div class="font-semibold text-gray-800 truncate">ID: ${invitedId}</div>
+                    <div class="text-xs ${rewarded ? 'text-green-700' : 'text-gray-500'}">
+                        ${rewarded ? 'Нагорода нарахована ✅' : 'Очікує виконання умов'}
+                    </div>
+                </div>
+                <div class="text-xs ${rewarded ? 'text-green-700' : 'text-gray-400'} font-bold">
+                    ${rewarded ? '+50' : ''}
+                </div>
+            </div>
+        `;
+    }).join('') : `
+        <div class="bg-white rounded-lg p-6 text-center text-gray-500 border">
+            <div class="text-4xl mb-2">👥</div>
+            <div class="font-semibold">Поки немає запрошених</div>
+            <div class="text-sm mt-1">Запроси друзів і заробляй бали</div>
+        </div>
+    `;
+
+    return `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center p-0 z-50" onclick="closeReferralModal(event)">
+            <div class="bg-white rounded-t-2xl w-full max-w-md p-5 safe-bottom" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <div class="text-lg font-bold">🎁 Реферали</div>
+                        <div class="text-xs text-gray-500">До ${max} друзів, по 50 балів за кожного</div>
+                    </div>
+                    <button onclick="state.referralModalOpen=false; render();" class="text-gray-500 text-2xl leading-none">×</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="bg-gray-50 border rounded-lg p-3">
+                        <div class="text-xs text-gray-500">Запрошено</div>
+                        <div class="text-2xl font-bold text-gray-800">${used}</div>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-3">
+                        <div class="text-xs text-gray-500">Залишилось</div>
+                        <div class="text-2xl font-bold text-gray-800">${remaining}</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-3">
+                    <button
+                        onclick="copyInviteLink()"
+                        class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg active:scale-95 ${r.loading ? 'opacity-70' : ''}"
+                    >
+                        ${r.loading ? 'Завантаження...' : 'Скопіювати інвайт'}
+                    </button>
+                    <button
+                        onclick="verifyMyReferralReward()"
+                        class="px-4 bg-gray-200 hover:bg-gray-300 font-semibold py-3 rounded-lg active:scale-95 ${r.loading ? 'opacity-70' : ''}"
+                        title="Перевірити мою нагороду (якщо мене запросили)"
+                    >
+                        ✅
+                    </button>
+                </div>
+
+                ${link ? `
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 break-all mb-3">
+                        ${link}
+                    </div>
+                ` : ''}
+
+                <div class="text-sm font-semibold mb-2">Список запрошених</div>
+                <div class="space-y-2 max-h-64 overflow-auto">
+                    ${list}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadReferralSummary() {
+    // GET /api/referral/codes
+    const res = await apiRequest('/api/referral/codes', { method: 'GET' });
+
+    state.referral.max = res.max ?? 10;
+    state.referral.used = res.used ?? 0;
+    state.referral.remaining = res.remaining ?? Math.max(0, (state.referral.max || 10) - (state.referral.used || 0));
+    state.referral.link = res.link || null;
+    state.referral.rows = res.rows || [];
+}
+
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+}
+
+window.openReferralModal = async () => {
+    state.referralModalOpen = true;
+    state.referral.loading = true;
+    render();
+    try {
+        await loadReferralSummary();
+    } catch (e) {
+        // ошибка уже показана showError в apiRequest
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
+};
+
+window.closeReferralModal = (e) => {
+    if (e.target === e.currentTarget) {
+        state.referralModalOpen = false;
+        render();
+    }
+};
+
+window.copyInviteLink = async () => {
+    try {
+        state.referral.loading = true;
+        render();
+
+        // POST /api/referral/create (создаёт/возвращает линк)
+        const res = await apiRequest('/api/referral/create', { method: 'POST' });
+
+        const link = res.link || null;
+        if (!link) {
+            throw new Error('Інвайт недоступний (перевір BOT_USERNAME / MINIAPP_SHORTNAME на беку)');
+        }
+
+        // обновим состояние из ответа (там summary тоже приходит)
+        state.referral.max = res.max ?? state.referral.max ?? 10;
+        state.referral.used = res.used ?? state.referral.used ?? 0;
+        state.referral.remaining = res.remaining ?? state.referral.remaining ?? 10;
+        state.referral.link = link;
+        state.referral.rows = res.rows || state.referral.rows || [];
+
+        await copyTextToClipboard(link);
+
+        showSuccess('Інвайт скопійовано ✅');
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+    } catch (e) {
+        console.error('copyInviteLink error:', e);
+        showError(e.message || 'Помилка');
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
+};
+
+window.verifyMyReferralReward = async () => {
+    try {
+        state.referral.loading = true;
+        render();
+
+        // POST /api/referral/verify (это для текущего юзера, если он был приглашён)
+        const res = await apiRequest('/api/referral/verify', { method: 'POST' });
+
+        // обновим юзера (баланс мог измениться, если это invited и награда пришла инвайтеру — не нам, но на всякий)
+        await loadUser();
+
+        // и обновим summary, чтобы в модалке было актуально
+        await loadReferralSummary();
+
+        if (res && res.rewarded) {
+            showSuccess('Успішно ✅');
+        } else {
+            showSuccess('Оновлено ✅');
+        }
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+    } catch (e) {
+        console.error('verifyMyReferralReward error:', e);
+        showError(e.message || 'Помилка');
+    } finally {
+        state.referral.loading = false;
+        render();
+    }
+};
+/* ======================= END NEW ======================= */
+
 function render() {
     const app = document.getElementById('app');
 
@@ -908,6 +1136,10 @@ function render() {
         <div class="p-4 pb-24">${content}</div>
         ${renderNav()}
         ${renderBetModal()}
+
+        <!-- ✅ NEW: кнопка + окно рефералки -->
+        ${renderReferralFab()}
+        ${renderReferralModal()}
     `;
 }
 
