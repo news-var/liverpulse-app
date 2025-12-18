@@ -447,11 +447,11 @@ function renderMatches() {
             ]);
 
             let absPoints = Array.from(rawKeys)
-              .map(k => parseFloat(k))
-              .filter(v => Number.isFinite(v))
-              .map(v => Math.abs(v))
-              // оставляем только целые и половинки (x.0 / x.5), но выкидываем 0.5
-              .filter(v => Number.isInteger(v * 2) && Math.abs(v - 0.5) > 1e-9);
+                .map(k => parseFloat(k))
+                .filter(v => Number.isFinite(v))
+                .map(v => Math.abs(v))
+                // убираем +/-0.5 и четвертные форы (1.25, 2.75 и т.п.)
+                .filter(v => v !== 0.5 && Number.isInteger(v * 2));
 
             absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
 
@@ -459,73 +459,43 @@ function renderMatches() {
             const points = hasZero ? [0, ...absPoints.filter(p => p !== 0)] : absPoints;
 
             let rows = points.map(p => {
-              const pos = String(p);
-              const neg = String(-p);
+                let homeOddsRaw = null;
+                let awayOddsRaw = null;
+                let lbl1, lbl2, sel1, sel2;
 
-              let lbl1, lbl2, sel1, sel2;
-              let homeOddsRaw = null;
-              let awayOddsRaw = null;
-
-              if (p === 0) {
-                homeOddsRaw = homeMap['0'] != null ? Number(homeMap['0']) : null;
-                awayOddsRaw = awayMap['0'] != null ? Number(awayMap['0']) : null;
-                lbl1 = 'Ф1 0';
-                lbl2 = 'Ф2 0';
-                sel1 = 'П1 (0)';
-                sel2 = 'П2 (0)';
-              } else {
-                // ДВА возможных кейса:
-                // 1) Дом фаворит: Ф1 -p (homeMap[-p]) и Ф2 +p (awayMap[+p])
-                const homeMinus = homeMap[neg] != null ? Number(homeMap[neg]) : null;
-                const awayPlus  = awayMap[pos] != null ? Number(awayMap[pos]) : null;
-
-                // 2) Выезд фаворит: Ф1 +p (homeMap[+p]) и Ф2 -p (awayMap[-p])
-                const homePlus  = homeMap[pos] != null ? Number(homeMap[pos]) : null;
-                const awayMinus = awayMap[neg] != null ? Number(awayMap[neg]) : null;
-
-                const pairAExists = (homeMinus != null) || (awayPlus != null);
-                const pairBExists = (homePlus != null) || (awayMinus != null);
-
-                // выбираем ту пару, где больше данных
-                const scoreA = (homeMinus != null) + (awayPlus != null);
-                const scoreB = (homePlus != null) + (awayMinus != null);
-
-                if (pairAExists && (!pairBExists || scoreA >= scoreB)) {
-                  // Ф1 -p / Ф2 +p
-                  homeOddsRaw = homeMinus;
-                  awayOddsRaw = awayPlus;
-                  lbl1 = `Ф1 -${p}`;
-                  lbl2 = `Ф2 +${p}`;
-                  sel1 = `П1 (-${p})`;
-                  sel2 = `П2 (+${p})`;
-                } else if (pairBExists) {
-                  // Ф1 +p / Ф2 -p
-                  homeOddsRaw = homePlus;
-                  awayOddsRaw = awayMinus;
-                  lbl1 = `Ф1 +${p}`;
-                  lbl2 = `Ф2 -${p}`;
-                  sel1 = `П1 (+${p})`;
-                  sel2 = `П2 (-${p})`;
+                if (p === 0) {
+                    homeOddsRaw = homeMap['0'] != null ? Number(homeMap['0']) : null;
+                    awayOddsRaw = awayMap['0'] != null ? Number(awayMap['0']) : null;
+                    lbl1 = 'Ф1 0';
+                    lbl2 = 'Ф2 0';
+                    sel1 = 'П1 (0)';
+                    sel2 = 'П2 (0)';
                 } else {
-                  return null;
+                    const pos = String(p);
+                    const neg = String(-p);
+                    homeOddsRaw = homeMap[neg] != null ? Number(homeMap[neg]) : null;
+                    awayOddsRaw = awayMap[pos] != null ? Number(awayMap[pos]) : null;
+                    lbl1 = `Ф1 -${p}`;
+                    lbl2 = `Ф2 +${p}`;
+                    sel1 = `П1 (-${p})`;
+                    sel2 = `П2 (+${p})`;
                 }
-              }
 
-              const hOk = homeOddsRaw != null && homeOddsRaw >= 1.1;
-              const aOk = awayOddsRaw != null && awayOddsRaw >= 1.1;
-              if (!hOk && !aOk) return null;
+                const hOk = homeOddsRaw != null && homeOddsRaw >= 1.1;
+                const aOk = awayOddsRaw != null && awayOddsRaw >= 1.1;
 
-              return {
-                point: p,
-                lbl1,
-                lbl2,
-                sel1,
-                sel2,
-                homeOdds: hOk ? homeOddsRaw : null,
-                awayOdds: aOk ? awayOddsRaw : null
-              };
+                if (!hOk && !aOk) return null;
+
+                return {
+                    point: p,
+                    lbl1,
+                    lbl2,
+                    sel1,
+                    sel2,
+                    homeOdds: hOk ? homeOddsRaw : null,
+                    awayOdds: aOk ? awayOddsRaw : null
+                };
             }).filter(Boolean);
-
 
             if (rows.length > 0) {
                 const isOpen = !!(state.expanded.handicaps[m.id]);
