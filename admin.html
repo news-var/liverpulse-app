@@ -81,7 +81,7 @@
                     ✅ Розблокувати доступ
                 </button>
                 
-                <button onclick="rebuildUser()"
+                <button onclick="recalcUser()"
                         class="w-full sm:col-span-2 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600">
                   🔁 Перерахувати всі ставки юзера
                 </button>
@@ -462,44 +462,48 @@
         }
     }
 
-    async function rebuildUser() {
-      const apiUrl = document.getElementById("apiUrl").value.trim();
-      const adminKey = document.getElementById("adminKey").value.trim();
-      const target = document.getElementById("userId").value.trim();
+    async function recalcUser() {
+      const input = document.getElementById("recalc-user-target");
+      const target = input.value.trim();
 
       if (!target) {
-        showResult("Вкажіть User ID або @username для перерахунку", "error");
-        return;
-      }
-
-      if (!confirm("Перерахувати всі ставки та баланс цього юзера?")) {
+        showResult("Введи ID або @username", "error");
         return;
       }
 
       try {
-        const resp = await fetch(`${apiUrl}/api/admin/rebuild-user`, {
+        const resp = await fetch("/api/admin/recalc-user", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Admin-Key": adminKey,
+            "X-Admin-Key": adminKeyInput.value.trim(),
           },
           body: JSON.stringify({ target }),
         });
 
         const data = await resp.json();
 
-        if (resp.ok && data.ok) {
+        if (!resp.ok || !data.ok) {
           showResult(
-            `✅ Юзер ${data.username} перерахований.\nНовий баланс: ${data.newPoints}\nСтавок: ${data.totalBets}, виграшних: ${data.winBets}, повернень: ${data.refundBets}, рефок: ${data.referralCount}`,
-            "success"
+            "Помилка: " + (data.error || `Supabase error ${resp.status}`),
+            "error"
           );
-        } else {
-          showResult(`❌ Помилка: ${data.error || "Unknown error"}`, "error");
+          return;
         }
+
+        showResult(
+          `✅ Юзер ${data.username} перерахований. ` +
+          `Новий баланс: ${data.newBalance}. ` +
+          `Ставок: ${data.totalBets}, виграшних: ${data.wonBets}, ` +
+          `повернень: ${data.refundBets}, рефок: ${data.referralCount}`,
+          "success"
+        );
       } catch (e) {
-        showResult(`❌ Помилка: ${e.message}`, "error");
+        console.error(e);
+        showResult("Помилка при запиті /recalc-user", "error");
       }
     }
+
 
     
     // ---------- Fetch user bets ----------
@@ -844,5 +848,6 @@
 </script>
 </body>
 </html>
+
 
 
