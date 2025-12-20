@@ -80,6 +80,11 @@
                         class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800">
                     ✅ Розблокувати доступ
                 </button>
+                
+                <button onclick="rebuildUser()"
+                        class="w-full sm:col-span-2 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600">
+                  🔁 Перерахувати всі ставки юзера
+                </button>
 
                 <button onclick="resetUserResults()"
                         class="w-full sm:col-span-2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600">
@@ -457,6 +462,46 @@
         }
     }
 
+    async function rebuildUser() {
+      const apiUrl = document.getElementById("apiUrl").value.trim();
+      const adminKey = document.getElementById("adminKey").value.trim();
+      const target = document.getElementById("userId").value.trim();
+
+      if (!target) {
+        showResult("Вкажіть User ID або @username для перерахунку", "error");
+        return;
+      }
+
+      if (!confirm("Перерахувати всі ставки та баланс цього юзера?")) {
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${apiUrl}/api/admin/rebuild-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Key": adminKey,
+          },
+          body: JSON.stringify({ target }),
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+          showResult(
+            `✅ Юзер ${data.username} перерахований.\nНовий баланс: ${data.newPoints}\nСтавок: ${data.totalBets}, виграшних: ${data.winBets}, повернень: ${data.refundBets}, рефок: ${data.referralCount}`,
+            "success"
+          );
+        } else {
+          showResult(`❌ Помилка: ${data.error || "Unknown error"}`, "error");
+        }
+      } catch (e) {
+        showResult(`❌ Помилка: ${e.message}`, "error");
+      }
+    }
+
+    
     // ---------- Fetch user bets ----------
     async function fetchUserBets() {
         const apiUrl = document.getElementById('apiUrl').value.trim();
@@ -799,4 +844,5 @@
 </script>
 </body>
 </html>
+
 
