@@ -309,9 +309,15 @@ async function copyToClipboard(text) {
 function formatInviteRow(r) {
     const claimed = r.claimed_at ? formatDate(r.claimed_at) : '-';
     const status = r.rewarded ? '✅' : '⏳';
-    const invitedId = r.invited_id != null ? String(r.invited_id) : '-';
-    return { claimed, status, invitedId };
+
+    // показываем ник, если есть, иначе запасной вариант с ID
+    const name =
+        r.invited_username ||
+        (r.invited_id != null ? `ID: ${r.invited_id}` : '—');
+
+    return { claimed, status, name };
 }
+
 
 // ==========================================
 // РЕНДЕРИНГ
@@ -960,8 +966,8 @@ function renderReferralPage() {
                 return `
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
                         <div class="min-w-0">
-                            <div class="text-xs text-gray-500">ID друга</div>
-                            <div class="font-semibold text-sm truncate">${row.invitedId}</div>
+                            <div class="text-xs text-gray-500">Нікнейм друга</div>
+                            <div class="font-semibold text-sm truncate">${row.name}</div>
                             <div class="text-xs text-gray-500 mt-1">Дата</div>
                             <div class="text-xs text-gray-700">${row.claimed}</div>
                         </div>
