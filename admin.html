@@ -94,7 +94,38 @@
 
             <div id="userBetsResult"
                  class="hidden whitespace-pre-wrap text-[11px] sm:text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-[320px] overflow-auto"></div>
+
+            <!-- Ручний перерахунок ставок -->
+            <div class="mt-4 border-t pt-3 space-y-3">
+                <h3 class="text-sm sm:text-base font-semibold">♻️ Ручний перерахунок</h3>
+
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="recalcBetId"
+                           type="number"
+                           class="border px-3 py-2 rounded-lg text-sm w-full sm:w-40"
+                           placeholder="ID ставки">
+                    <button onclick="recalcBet()"
+                            class="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700">
+                        Перерахувати ставку
+                    </button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="recalcMatchId"
+                           type="number"
+                           class="border px-3 py-2 rounded-lg text-sm w-full sm:w-40"
+                           placeholder="ID матчу">
+                    <button onclick="recalcMatch()"
+                            class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">
+                        Перерахувати всі ставки матчу
+                    </button>
+                </div>
+
+                <pre id="recalcOutput"
+                     class="bg-gray-900 text-green-300 text-[10px] sm:text-xs p-3 rounded-lg max-h-[200px] overflow-auto"></pre>
+            </div>
         </section>
+
 
         <hr class="my-2">
 
@@ -476,7 +507,7 @@
                 };
                 const status = statusMap[b.status] || b.status;
 
-                return `${formatDateTime(b.created_at)} | ${matchTitle}` +
+                return `#${b.id} | ${formatDateTime(b.created_at)} | ${matchTitle}` +
                     (b.competition ? ` (${b.competition})` : '') +
                     `\n  Ставка: ${b.bet_type} – ${b.selection}, статус: ${status}` +
                     `\n  Коеф.: ${b.odds}, сума: ${b.stake}, потенц. виграш: ${b.potential_win}` +
@@ -484,6 +515,7 @@
                     resScore +
                     `\n`;
             });
+
 
             box.textContent = `Юзер: ${data.user.username} (id: ${data.user.id})\n\n` + lines.join('\n');
         } catch (error) {
@@ -642,6 +674,76 @@
         }
     }
 
+    // ---------- Admin helper ----------
+    async function adminRequest(path, method = 'GET', body) {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        const resp = await fetch(`${apiUrl}${path}`, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-Key': adminKey
+            },
+            body: body ? JSON.stringify(body) : undefined
+        });
+
+        let data;
+        try {
+            data = await resp.json();
+        } catch (e) {
+            data = { error: 'Invalid JSON' };
+        }
+        return { ok: resp.ok, data };
+    }
+
+    // ---------- Recalc ONE bet ----------
+    async function recalcBet() {
+        const betId = Number(document.getElementById('recalcBetId').value);
+        const out = document.getElementById('recalcOutput');
+
+        if (!betId) {
+            out.textContent = 'Вкажіть коректний ID ставки';
+            return;
+        }
+
+        out.textContent = 'Перерахунок ставки...';
+
+        const { ok, data } = await adminRequest('/api/admin/recalc-bet', 'POST', { betId });
+
+        if (!ok) {
+            out.textContent = `Помилка: ${data.error || 'unknown'}`;
+            return;
+        }
+
+        out.textContent = JSON.stringify(data, null, 2);
+        showResult('✅ Ставку перераховано', 'success');
+    }
+
+    // ---------- Recalc ALL bets of match ----------
+    async function recalcMatch() {
+        const matchId = Number(document.getElementById('recalcMatchId').value);
+        const out = document.getElementById('recalcOutput');
+
+        if (!matchId) {
+            out.textContent = 'Вкажіть коректний ID матчу';
+            return;
+        }
+
+        out.textContent = 'Перерахунок ставок матчу...';
+
+        const { ok, data } = await adminRequest('/api/admin/recalc-match', 'POST', { matchId });
+
+        if (!ok) {
+            out.textContent = `Помилка: ${data.error || 'unknown'}`;
+            return;
+        }
+
+        out.textContent = JSON.stringify(data, null, 2);
+        showResult('✅ Ставки матчу перераховано', 'success');
+    }
+
+    
     // ---------- Dashboard stats ----------
     async function loadStats() {
         const apiUrl = document.getElementById('apiUrl').value.trim();
@@ -697,3 +799,4 @@
 </script>
 </body>
 </html>
+
