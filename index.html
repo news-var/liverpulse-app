@@ -372,6 +372,7 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
+        // адаптивный размер шрифта: длиннее имя — меньше шрифт
         const getNameClass = (len) => {
             if (len >= 18) return 'text-sm md:text-base';
             if (len >= 12) return 'text-base md:text-lg';
@@ -387,22 +388,28 @@ function renderMatches() {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
                     <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 mb-2">
+                        <!-- Хозяева: логотип слева, название справа -->
                         <div class="flex items-center gap-2 min-w-0 justify-start">
                             ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
                                 ${m.home_team}
                             </p>
                         </div>
+
+                        <!-- Счёт строго по центру, не ломается -->
                         <div class="px-2 text-2xl md:text-3xl font-bold text-red-700 text-center whitespace-nowrap">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
-                        <div class="flex items-center gap-2 min-w-0 justify-end">
+
+                        <!-- Гости: название слева, логотип справа (фиксировано) -->
+                        <div class="flex items-center gap-2 min-w-0 justify-end flex-row-reverse">
                             ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
                                 ${m.away_team}
                             </p>
                         </div>
                     </div>
+
                     <div class="text-center text-sm text-gray-500">
                         📅 ${formatDate(m.match_date)}
                     </div>
@@ -734,16 +741,21 @@ function renderMatches() {
         return `
             <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
                 <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 mb-3">
+                    <!-- Хозяева -->
                     <div class="flex items-center gap-2 min-w-0 justify-start">
                         ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
                         <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
                             ${m.home_team}
                         </p>
                     </div>
+
+                    <!-- Центр: VS -->
                     <div class="px-2 text-2xl md:text-3xl font-bold text-red-700 text-center whitespace-nowrap">
                         VS
                     </div>
-                    <div class="flex items-center gap-2 min-w-0 justify-end">
+
+                    <!-- Гости: название слева, логотип справа -->
+                    <div class="flex items-center gap-2 min-w-0 justify-end flex-row-reverse">
                         ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
                         <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
                             ${m.away_team}
@@ -788,6 +800,7 @@ function renderMatches() {
         `;
     }).join('');
 }
+
 
 
 
