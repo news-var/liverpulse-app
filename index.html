@@ -37,6 +37,7 @@ const CONFIG = {
 // ==========================================
 // TELEGRAM
 // ==========================================
+const CHANNEL_INVITE_URL = "https://t.me/+EfgNYA-6K75iZTVi";
 const tg = window.Telegram?.WebApp;
 if (tg && CONFIG.USE_TELEGRAM) {
     tg.ready();
@@ -316,6 +317,14 @@ function formatInviteRow(r) {
         (r.invited_id != null ? `ID: ${r.invited_id}` : '—');
 
     return { claimed, status, name };
+}
+
+function buildReferralText(refLink) {
+    return [
+        'Роби безкоштовні ставки на матчі Ліверпуля та вигравай призи!',
+        `Підпишись на канал Ліверпульс 👉 ${CHANNEL_INVITE_URL}`,
+        `Заходь у додаток та отримуй стартові 1000 балів 👉 ${refLink}`
+    ].join('\n');
 }
 
 
@@ -1013,7 +1022,8 @@ function renderReferralPage() {
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-600">
                         Завантаження...
                     </div>
-                ` : `
+               ` : `
+                    <!-- Інвайт у додаток -->
                     <div class="flex gap-2">
                         <input
                             id="refLinkInput"
@@ -1027,7 +1037,22 @@ function renderReferralPage() {
                             class="bg-gray-200 hover:bg-gray-300 rounded-lg px-4 py-2 font-semibold active:scale-95"
                             ${link ? '' : 'disabled style="opacity:.5; cursor:default;"'}
                         >
-                            Копіювати
+                            Копіювати інвайт
+                        </button>
+                    </div>
+
+                    <!-- Посилання на канал -->
+                    <div class="flex gap-2 mt-2">
+                        <input
+                            value="${CHANNEL_INVITE_URL}"
+                            readonly
+                            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                        />
+                        <button
+                            onclick="copyChannelLink()"
+                            class="bg-gray-200 hover:bg-gray-300 rounded-lg px-4 py-2 font-semibold active:scale-95"
+                        >
+                            Копіювати канал
                         </button>
                     </div>
 
@@ -1054,6 +1079,7 @@ function renderReferralPage() {
                     </div>
                 `}
             </div>
+
 
             <div>
                 <div class="text-sm font-semibold">Запрошені</div>
@@ -1221,17 +1247,32 @@ window.copyReferralLink = async () => {
     }
 };
 
+window.copyChannelLink = async () => {
+    const ok = await copyToClipboard(CHANNEL_INVITE_URL);
+    if (ok) {
+        showSuccess('Скопійовано посилання на канал ✅');
+        if (tg && tg.HapticFeedback) {
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+    } else {
+        showError('Не вдалося скопіювати');
+    }
+};
+
+
 // НОВОЕ: шэринг ссылки в Telegram
 window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    const text = 'Заходь у Ліверпульс – соціальні ставки на матчі Ліверпуля!';
+    // Новый текст для друзів
+    const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
         const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
         tg.openTelegramLink(shareUrl);
     } else {
+        // як fallback просто відкриваємо інвайт
         window.open(link, '_blank');
     }
 
@@ -1239,6 +1280,7 @@ window.shareReferralLink = () => {
         tg.HapticFeedback.impactOccurred('light');
     }
 };
+
 
 
 // ==========================================
