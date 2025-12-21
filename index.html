@@ -372,7 +372,7 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
-        // Адаптивні розміри шрифтів з урахуванням реальної ширини Mini App
+        // Адаптивні розміри шрифтів
         const getNameClass = (len) => {
             if (len >= 18) return 'text-[10px] leading-tight';
             if (len >= 14) return 'text-xs leading-tight';
@@ -397,7 +397,7 @@ function renderMatches() {
                                     : `<div class="w-7 h-7"></div>`
                                 }
                             </div>
-                            <p class="font-bold ${homeNameClass} text-left truncate">
+                            <p class="font-bold ${homeNameClass} text-left break-words hyphens-auto">
                                 ${m.home_team}
                             </p>
                         </div>
@@ -415,7 +415,7 @@ function renderMatches() {
                                     : `<div class="w-7 h-7"></div>`
                                 }
                             </div>
-                            <p class="font-bold ${awayNameClass} text-right truncate">
+                            <p class="font-bold ${awayNameClass} text-right break-words hyphens-auto">
                                 ${m.away_team}
                             </p>
                         </div>
@@ -761,7 +761,7 @@ function renderMatches() {
                                 : `<div class="w-7 h-7"></div>`
                             }
                         </div>
-                        <p class="font-bold ${homeNameClass} text-left truncate">
+                        <p class="font-bold ${homeNameClass} text-left break-words hyphens-auto">
                             ${m.home_team}
                         </p>
                     </div>
@@ -779,7 +779,7 @@ function renderMatches() {
                                 : `<div class="w-7 h-7"></div>`
                             }
                         </div>
-                        <p class="font-bold ${awayNameClass} text-right truncate">
+                        <p class="font-bold ${awayNameClass} text-right break-words hyphens-auto">
                             ${m.away_team}
                         </p>
                     </div>
@@ -822,7 +822,6 @@ function renderMatches() {
         `;
     }).join('');
 }
-
 
 
 
