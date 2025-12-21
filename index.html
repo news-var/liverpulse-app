@@ -369,29 +369,38 @@ function renderMatches() {
         const homeLogo = getTeamLogo(m.home_team);
         const awayLogo = getTeamLogo(m.away_team);
 
-        const homeLong = m.home_team && m.home_team.length > 14;
-        const awayLong = m.away_team && m.away_team.length > 14;
+        const homeNameClass = (m.home_team && m.home_team.length > 16) ? 'text-sm' : 'text-lg';
+        const awayNameClass = (m.away_team && m.away_team.length > 16) ? 'text-sm' : 'text-lg';
 
-        const homeNameClass = homeLong ? 'text-sm' : 'text-lg';
-        const awayNameClass = awayLong ? 'text-sm' : 'text-lg';
-
-        // Завершений матч
+        // ====== ЗАВЕРШЕНИЙ МАТЧ ======
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
-                    <div class="flex items-center justify-between mb-2 overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <!-- Хозяева -->
                         <div class="flex items-center gap-2 flex-1 justify-start min-w-0">
-                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
+                            ${homeLogo ? `
+                                <img src="${homeLogo}"
+                                     class="w-8 h-8 object-contain flex-shrink-0"
+                                     onerror="this.style.display='none'" />
+                            ` : ''}
+                            <p class="font-bold ${homeNameClass} text-left leading-tight truncate">
                                 ${m.home_team}
                             </p>
                         </div>
+
                         <div class="px-4 text-2xl font-bold text-red-700 flex-shrink-0">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
-                        <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse min-w-0">
-                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
+
+                        <!-- Гости -->
+                        <div class="flex items-center gap-2 flex-1 justify-end min-w-0 flex-row-reverse">
+                            ${awayLogo ? `
+                                <img src="${awayLogo}"
+                                     class="w-8 h-8 object-contain flex-shrink-0"
+                                     onerror="this.style.display='none'" />
+                            ` : ''}
+                            <p class="font-bold ${awayNameClass} text-right leading-tight truncate">
                                 ${m.away_team}
                             </p>
                         </div>
@@ -411,7 +420,7 @@ function renderMatches() {
             `;
         }
 
-        // Статусный блок
+        // ====== STATUS BLOCK (UPCOMING / LOCKED / LIVE) ======
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
@@ -429,7 +438,7 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // Double chance
+        // ====== DOUBLE CHANCE ======
         const dc = canBet ? computeDoubleChanceOdds(m) : null;
         const doubleChanceRow = (canBet && dc) ? `
             <div class="grid grid-cols-3 gap-2 mt-2">
@@ -451,9 +460,7 @@ function renderMatches() {
             </div>
         ` : '';
 
-        // ====== тоталы / форы / точный счёт остаются без изменений ======
-        // ниже твои прежние блоки totalsBlock, handicapsBlock, correctScoreBlock
-
+        // ====== TOTALS ======
         let totalsBlock = '';
         const totalsLines = m.totals_lines || null;
         if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
@@ -538,6 +545,7 @@ function renderMatches() {
             }
         }
 
+        // ====== HANDICAPS ======
         let handicapsBlock = '';
         const spreadLines = m.spread_lines || null;
         if (
@@ -684,6 +692,7 @@ function renderMatches() {
             }
         }
 
+        // ====== CORRECT SCORE ======
         let correctScoreBlock = '';
         const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
         if (canBet && csArr.length > 0) {
@@ -723,60 +732,73 @@ function renderMatches() {
             }
         }
 
+        // ====== КАРТОЧКА ДЛЯ АКТУАЛЬНЫХ МАТЧЕЙ ======
         return `
-        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <div class="flex items-center justify-between mb-3 overflow-hidden">
-                <div class="flex items-center gap-2 flex-1 justify-start min-w-0">
-                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
-                        ${m.home_team}
-                    </p>
+            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                <div class="flex items-center justify-between mb-3">
+                    <!-- Хозяева -->
+                    <div class="flex items-center gap-2 flex-1 justify-start min-w-0">
+                        ${homeLogo ? `
+                            <img src="${homeLogo}"
+                                 class="w-8 h-8 object-contain flex-shrink-0"
+                                 onerror="this.style.display='none'" />
+                        ` : ''}
+                        <p class="font-bold ${homeNameClass} text-left leading-tight truncate">
+                            ${m.home_team}
+                        </p>
+                    </div>
+
+                    <div class="px-4 flex-shrink-0">
+                        <p class="text-gray-400">VS</p>
+                    </div>
+
+                    <!-- Гости -->
+                    <div class="flex items-center gap-2 flex-1 justify-end min-w-0 flex-row-reverse">
+                        ${awayLogo ? `
+                            <img src="${awayLogo}"
+                                 class="w-8 h-8 object-contain flex-shrink-0"
+                                 onerror="this.style.display='none'" />
+                        ` : ''}
+                        <p class="font-bold ${awayNameClass} text-right leading-tight truncate">
+                            ${m.away_team}
+                        </p>
+                    </div>
                 </div>
-                <div class="px-4 flex-shrink-0">
-                    <p class="text-gray-400">VS</p>
+
+                <div class="text-center text-sm text-gray-500">
+                    📅 ${formatDate(m.match_date)}
                 </div>
-                <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse min-w-0">
-                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
-                        ${m.away_team}
-                    </p>
-                </div>
+                ${m.competition ? `
+                    <div class="text-center text-xs text-gray-400 mt-1 mb-2">
+                        🏆 ${m.competition}
+                    </div>
+                ` : `<div class="mt-2"></div>`}
+
+                ${canBet ? `
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
+                            class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
+                            <p class="text-xs text-gray-600">П1</p>
+                            <p class="font-bold text-green-700">${m.odds_home}</p>
+                        </button>
+                        <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
+                            class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
+                            <p class="text-xs text-gray-600">X</p>
+                            <p class="font-bold text-blue-700">${m.odds_draw}</p>
+                        </button>
+                        <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
+                            class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
+                            <p class="text-xs text-gray-600">П2</p>
+                            <p class="font-bold text-red-700">${m.odds_away}</p>
+                        </button>
+                    </div>
+
+                    ${doubleChanceRow}
+                    ${totalsBlock}
+                    ${handicapsBlock}
+                    ${correctScoreBlock}
+                ` : statusBlock}
             </div>
-
-            <div class="text-center text-sm text-gray-500">
-                📅 ${formatDate(m.match_date)}
-            </div>
-            ${m.competition ? `
-                <div class="text-center text-xs text-gray-400 mt-1 mb-2">
-                    🏆 ${m.competition}
-                </div>
-            ` : `<div class="mt-2"></div>`}
-
-            ${canBet ? `
-                <div class="grid grid-cols-3 gap-2">
-                    <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
-                        class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П1</p>
-                        <p class="font-bold text-green-700">${m.odds_home}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
-                        class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">X</p>
-                        <p class="font-bold text-blue-700">${m.odds_draw}</p>
-                    </button>
-                    <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
-                        class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
-                        <p class="text-xs text-gray-600">П2</p>
-                        <p class="font-bold text-red-700">${m.odds_away}</p>
-                    </button>
-                </div>
-
-                ${doubleChanceRow}
-                ${totalsBlock}
-                ${handicapsBlock}
-                ${correctScoreBlock}
-            ` : statusBlock}
-        </div>
         `;
     }).join('');
 }
