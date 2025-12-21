@@ -369,26 +369,29 @@ function renderMatches() {
         const homeLogo = getTeamLogo(m.home_team);
         const awayLogo = getTeamLogo(m.away_team);
 
-        const homeNameClass = (m.home_team && m.home_team.length > 16) ? 'text-sm' : 'text-lg';
-        const awayNameClass = (m.away_team && m.away_team.length > 16) ? 'text-sm' : 'text-lg';
+        const homeLong = m.home_team && m.home_team.length > 14;
+        const awayLong = m.away_team && m.away_team.length > 14;
+
+        const homeNameClass = homeLong ? 'text-sm' : 'text-lg';
+        const awayNameClass = awayLong ? 'text-sm' : 'text-lg';
 
         // Завершений матч
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2 flex-1 justify-start">
-                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${homeNameClass} text-left leading-tight max-w-[140px]">
+                    <div class="flex items-center justify-between mb-2 overflow-hidden">
+                        <div class="flex items-center gap-2 flex-1 justify-start min-w-0">
+                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
                                 ${m.home_team}
                             </p>
                         </div>
-                        <div class="px-4 text-2xl font-bold text-red-700">
+                        <div class="px-4 text-2xl font-bold text-red-700 flex-shrink-0">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
-                        <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse">
-                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${awayNameClass} text-right leading-tight max-w-[140px]">
+                        <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse min-w-0">
+                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
                                 ${m.away_team}
                             </p>
                         </div>
@@ -408,7 +411,7 @@ function renderMatches() {
             `;
         }
 
-        // Статусный блок для upcoming/locked/live
+        // Статусный блок
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
@@ -426,7 +429,7 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // ====== Double Chance 1X / 12 / X2 ======
+        // Double chance
         const dc = canBet ? computeDoubleChanceOdds(m) : null;
         const doubleChanceRow = (canBet && dc) ? `
             <div class="grid grid-cols-3 gap-2 mt-2">
@@ -448,7 +451,9 @@ function renderMatches() {
             </div>
         ` : '';
 
-        // ====== Ставки на тотал (totals_lines) ======
+        // ====== тоталы / форы / точный счёт остаются без изменений ======
+        // ниже твои прежние блоки totalsBlock, handicapsBlock, correctScoreBlock
+
         let totalsBlock = '';
         const totalsLines = m.totals_lines || null;
         if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
@@ -533,7 +538,6 @@ function renderMatches() {
             }
         }
 
-        // ====== Ставки з форою (spread_lines) ======
         let handicapsBlock = '';
         const spreadLines = m.spread_lines || null;
         if (
@@ -680,7 +684,6 @@ function renderMatches() {
             }
         }
 
-        // ====== Точний рахунок ======
         let correctScoreBlock = '';
         const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
         if (canBet && csArr.length > 0) {
@@ -722,19 +725,19 @@ function renderMatches() {
 
         return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2 flex-1 justify-start">
-                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold ${homeNameClass} text-left leading-tight max-w-[140px]">
+            <div class="flex items-center justify-between mb-3 overflow-hidden">
+                <div class="flex items-center gap-2 flex-1 justify-start min-w-0">
+                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+                    <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
                         ${m.home_team}
                     </p>
                 </div>
-                <div class="px-4">
+                <div class="px-4 flex-shrink-0">
                     <p class="text-gray-400">VS</p>
                 </div>
-                <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse">
-                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold ${awayNameClass} text-right leading-tight max-w-[140px]">
+                <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse min-w-0">
+                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+                    <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
                         ${m.away_team}
                     </p>
                 </div>
@@ -777,6 +780,7 @@ function renderMatches() {
         `;
     }).join('');
 }
+
 
 
 function renderBets() {
