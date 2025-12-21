@@ -369,21 +369,28 @@ function renderMatches() {
         const homeLogo = getTeamLogo(m.home_team);
         const awayLogo = getTeamLogo(m.away_team);
 
+        const homeNameClass = (m.home_team && m.home_team.length > 16) ? 'text-sm' : 'text-lg';
+        const awayNameClass = (m.away_team && m.away_team.length > 16) ? 'text-sm' : 'text-lg';
+
         // Завершений матч
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2 flex-1 justify-center">
+                        <div class="flex items-center gap-2 flex-1 justify-start">
                             ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold text-lg">${m.home_team}</p>
+                            <p class="font-bold ${homeNameClass} text-left leading-tight max-w-[140px]">
+                                ${m.home_team}
+                            </p>
                         </div>
                         <div class="px-4 text-2xl font-bold text-red-700">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
-                        <div class="flex items-center gap-2 flex-1 justify-center">
+                        <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse">
                             ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold text-lg">${m.away_team}</p>
+                            <p class="font-bold ${awayNameClass} text-right leading-tight max-w-[140px]">
+                                ${m.away_team}
+                            </p>
                         </div>
                     </div>
                     <div class="text-center text-sm text-gray-500">
@@ -449,8 +456,6 @@ function renderMatches() {
                 .map(([pt, line]) => {
                     const v = parseFloat(pt);
                     if (!Number.isFinite(v)) return null;
-
-                    // только целые и половины (0.0 / 0.5); убираем 2.25, 2.75 и т.п.
                     if (!Number.isInteger(v * 2)) return null;
 
                     const overRaw = line && line.over != null ? Number(line.over) : null;
@@ -550,7 +555,6 @@ function renderMatches() {
               .map(k => parseFloat(k))
               .filter(v => Number.isFinite(v))
               .map(v => Math.abs(v))
-              // оставляем только целые и половинки (x.0 / x.5), но выкидываем 0.5
               .filter(v => Number.isInteger(v * 2) && Math.abs(v - 0.5) > 1e-9);
 
             absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
@@ -574,11 +578,8 @@ function renderMatches() {
                 sel1 = 'П1 (0)';
                 sel2 = 'П2 (0)';
               } else {
-                // 1) Дом фаворит: Ф1 -p и Ф2 +p
                 const homeMinus = homeMap[neg] != null ? Number(homeMap[neg]) : null;
                 const awayPlus  = awayMap[pos] != null ? Number(awayMap[pos]) : null;
-
-                // 2) Выезд фаворит: Ф1 +p и Ф2 -p
                 const homePlus  = homeMap[pos] != null ? Number(homeMap[pos]) : null;
                 const awayMinus = awayMap[neg] != null ? Number(awayMap[neg]) : null;
 
@@ -722,16 +723,20 @@ function renderMatches() {
         return `
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2 flex-1 justify-center">
+                <div class="flex items-center gap-2 flex-1 justify-start">
                     ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold text-lg">${m.home_team}</p>
+                    <p class="font-bold ${homeNameClass} text-left leading-tight max-w-[140px]">
+                        ${m.home_team}
+                    </p>
                 </div>
                 <div class="px-4">
                     <p class="text-gray-400">VS</p>
                 </div>
-                <div class="flex items-center gap-2 flex-1 justify-center">
+                <div class="flex items-center gap-2 flex-1 justify-end flex-row-reverse">
                     ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
-                    <p class="font-bold text-lg">${m.away_team}</p>
+                    <p class="font-bold ${awayNameClass} text-right leading-tight max-w-[140px]">
+                        ${m.away_team}
+                    </p>
                 </div>
             </div>
 
@@ -772,6 +777,7 @@ function renderMatches() {
         `;
     }).join('');
 }
+
 
 function renderBets() {
     if (state.myBets.length === 0) {
@@ -1113,6 +1119,11 @@ function render() {
 
     let content = '';
     if (state.currentPage === 'matches') {
+        const hasUpcoming = state.matches.some(m => m.status === 'upcoming');
+        const headingText = hasUpcoming
+            ? '⏰ Майбутні матчі'
+            : '⏰ Наступний матч скоро з\'явиться';
+
         content = `
             <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 text-white mb-4">
                 <div class="flex items-center justify-between">
@@ -1123,9 +1134,11 @@ function render() {
                     <div class="text-5xl">🏆</div>
                 </div>
             </div>
-            <h2 class="text-xl font-bold mb-4">⏰ Майбутні матчі</h2>
+            <h2 class="text-xl font-bold mb-4">${headingText}</h2>
             <div class="space-y-4">${renderMatches()}</div>
         `;
+    }
+
     } else if (state.currentPage === 'bets') {
         content = `<h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2><div class="space-y-4">${renderBets()}</div>`;
     } else if (state.currentPage === 'leaderboard') {
