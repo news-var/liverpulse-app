@@ -463,46 +463,41 @@
     }
 
     async function recalcUser() {
-      const input = document.getElementById("recalc-user-target");
-      const target = input.value.trim();
+        const target = document.getElementById("userId").value.trim();
 
-      if (!target) {
-        showResult("Введи ID або @username", "error");
-        return;
-      }
-
-      try {
-        const resp = await fetch("/api/admin/recalc-user", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Admin-Key": adminKeyInput.value.trim(),
-          },
-          body: JSON.stringify({ target }),
-        });
-
-        const data = await resp.json();
-
-        if (!resp.ok || !data.ok) {
-          showResult(
-            "Помилка: " + (data.error || `Supabase error ${resp.status}`),
-            "error"
-          );
-          return;
+        if (!target) {
+            showResult("Вкажіть User ID або @username для перерахунку", "error");
+            return;
         }
 
-        showResult(
-          `✅ Юзер ${data.username} перерахований. ` +
-          `Новий баланс: ${data.newBalance}. ` +
-          `Ставок: ${data.totalBets}, виграшних: ${data.wonBets}, ` +
-          `повернень: ${data.refundBets}, рефок: ${data.referralCount}`,
-          "success"
-        );
-      } catch (e) {
-        console.error(e);
-        showResult("Помилка при запиті /recalc-user", "error");
-      }
+        try {
+            const { ok, data } = await adminRequest(
+                "/api/admin/recalc-user",
+                "POST",
+                { target }
+            );
+
+            if (!ok || !data.ok) {
+                showResult(
+                    "Помилка: " + (data.error || "unknown"),
+                    "error"
+                );
+                return;
+            }
+
+            showResult(
+                `✅ Юзер ${data.username} перерахований. ` +
+                `Новий баланс: ${data.newBalance}. ` +
+                `Ставок: ${data.totalBets}, виграшних: ${data.wonBets}, ` +
+                `повернень: ${data.refundBets}, рефок: ${data.referralCount}`,
+                "success"
+            );
+        } catch (e) {
+            console.error(e);
+            showResult("Помилка при запиті /api/admin/recalc-user", "error");
+        }
     }
+
 
 
     
@@ -848,6 +843,7 @@
 </script>
 </body>
 </html>
+
 
 
 
