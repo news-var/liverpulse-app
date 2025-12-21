@@ -375,14 +375,14 @@ function renderMatches() {
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2 flex-1 justify-center">
-                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold text-lg">${m.home_team}</p>
                         </div>
                         <div class="px-4 text-2xl font-bold text-red-700">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
                         <div class="flex items-center gap-2 flex-1 justify-center">
-                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
                             <p class="font-bold text-lg">${m.away_team}</p>
                         </div>
                     </div>
@@ -723,14 +723,14 @@ function renderMatches() {
         <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2 flex-1 justify-center">
-                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+                    ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
                     <p class="font-bold text-lg">${m.home_team}</p>
                 </div>
                 <div class="px-4">
                     <p class="text-gray-400">VS</p>
                 </div>
                 <div class="flex items-center gap-2 flex-1 justify-center">
-                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 rounded-full bg-white border" onerror="this.style.display='none'" />` : ''}
+                    ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />` : ''}
                     <p class="font-bold text-lg">${m.away_team}</p>
                 </div>
             </div>
