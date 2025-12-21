@@ -372,12 +372,12 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
-        // адаптивный размер шрифта: длиннее имя — меньше шрифт
+        // длина имени -> размер шрифта (на десктопе сильнее уменьшаем)
         const getNameClass = (len) => {
-            if (len >= 18) return 'text-sm md:text-base';
-            if (len >= 12) return 'text-base md:text-lg';
-            if (len >= 10) return 'text-lg md:text-xl';
-            return 'text-xl md:text-2xl';
+            if (len >= 18) return 'text-sm md:text-xs';
+            if (len >= 14) return 'text-base md:text-sm';
+            if (len >= 10) return 'text-lg md:text-base';
+            return 'text-xl md:text-lg';
         };
 
         const homeNameClass = getNameClass(homeLen);
@@ -386,25 +386,25 @@ function renderMatches() {
         // ===== ЗАВЕРШЁННЫЙ МАТЧ =====
         if (m.status === 'finished') {
             return `
-                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
+                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4 overflow-hidden">
                     <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 mb-2">
                         <!-- Хозяева: логотип слева, название справа -->
                         <div class="flex items-center gap-2 min-w-0 justify-start">
                             ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
+                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words max-w-[145px]">
                                 ${m.home_team}
                             </p>
                         </div>
 
-                        <!-- Счёт строго по центру, не ломается -->
+                        <!-- Счёт строго по центру -->
                         <div class="px-2 text-2xl md:text-3xl font-bold text-red-700 text-center whitespace-nowrap">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
 
-                        <!-- Гости: название слева, логотип справа (фиксировано) -->
+                        <!-- Гости: название слева, логотип справа -->
                         <div class="flex items-center gap-2 min-w-0 justify-end flex-row-reverse">
                             ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
+                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words max-w-[145px]">
                                 ${m.away_team}
                             </p>
                         </div>
@@ -739,12 +739,12 @@ function renderMatches() {
 
         // ===== КАРТОЧКА ДЛЯ АКТУАЛЬНЫХ МАТЧЕЙ =====
         return `
-            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200 overflow-hidden">
                 <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 mb-3">
                     <!-- Хозяева -->
                     <div class="flex items-center gap-2 min-w-0 justify-start">
                         ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                        <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
+                        <p class="font-bold ${homeNameClass} text-left leading-tight break-words max-w-[145px]">
                             ${m.home_team}
                         </p>
                     </div>
@@ -754,10 +754,10 @@ function renderMatches() {
                         VS
                     </div>
 
-                    <!-- Гости: название слева, логотип справа -->
+                    <!-- Гости -->
                     <div class="flex items-center gap-2 min-w-0 justify-end flex-row-reverse">
                         ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8 object-contain flex-shrink-0" onerror="this.style.display='none'" />` : ''}
-                        <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
+                        <p class="font-bold ${awayNameClass} text-right leading-tight break-words max-w-[145px]">
                             ${m.away_team}
                         </p>
                     </div>
@@ -800,6 +800,8 @@ function renderMatches() {
         `;
     }).join('');
 }
+
+
 
 
 
