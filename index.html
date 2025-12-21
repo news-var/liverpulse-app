@@ -1118,6 +1118,7 @@ function render() {
     }
 
     let content = '';
+
     if (state.currentPage === 'matches') {
         const hasUpcoming = state.matches.some(m => m.status === 'upcoming');
         const headingText = hasUpcoming
@@ -1137,16 +1138,19 @@ function render() {
             <h2 class="text-xl font-bold mb-4">${headingText}</h2>
             <div class="space-y-4">${renderMatches()}</div>
         `;
-    }
-
     } else if (state.currentPage === 'bets') {
-        content = `<h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2><div class="space-y-4">${renderBets()}</div>`;
+        content = `
+            <h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2>
+            <div class="space-y-4">${renderBets()}</div>
+        `;
     } else if (state.currentPage === 'leaderboard') {
-        content = `<h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2><div class="space-y-4">${renderLeaderboard()}</div>`;
+        content = `
+            <h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2>
+            <div class="space-y-4">${renderLeaderboard()}</div>
+        `;
     } else if (state.currentPage === 'referral') {
         content = renderReferralPage();
     }
-
 
     app.innerHTML = `
         ${renderHeader()}
