@@ -1268,15 +1268,19 @@ window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    // Формируем сообщение с переносами строк и двумя ссылками
+    // Готовим финальный текст сообщения с переносами строк
     const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
-        // ВАЖНО: передаем только text, БЕЗ параметра url
-        const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
+        // Хак: передаём пустой url и весь текст в text
+        // Это нужно, чтобы Телега открывала share, но не лепила ссылку сверху
+        const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(text)}`;
         tg.openTelegramLink(shareUrl);
+    } else if (navigator.share) {
+        // Если вдруг вне Телеги – системный share
+        navigator.share({ text }).catch(() => {});
     } else {
-        // Fallback: просто копируем весь текст
+        // Фоллбек: просто копируем текст
         copyToClipboard(text);
         showSuccess('Текст запрошення скопійовано ✅');
     }
@@ -1285,6 +1289,7 @@ window.shareReferralLink = () => {
         tg.HapticFeedback.impactOccurred('light');
     }
 };
+
 
 
 
