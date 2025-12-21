@@ -1268,27 +1268,32 @@ window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    // Готовим финальный текст сообщения с переносами строк
+    // наш текст с переносами строк и двумя ссылками
     const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
-        // Хак: передаём пустой url и весь текст в text
-        // Это нужно, чтобы Телега открывала share, но не лепила ссылку сверху
-        const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(text)}`;
+        // ВАЖНО: url ДОЛЖЕН быть не пустой, иначе Telegram не откроет окно выбора чата
+        const shareUrl =
+            'https://t.me/share/url?' +
+            'url=' + encodeURIComponent(link) +
+            '&text=' + encodeURIComponent(text);
+
         tg.openTelegramLink(shareUrl);
-    } else if (navigator.share) {
-        // Если вдруг вне Телеги – системный share
-        navigator.share({ text }).catch(() => {});
     } else {
-        // Фоллбек: просто копируем текст
-        copyToClipboard(text);
-        showSuccess('Текст запрошення скопійовано ✅');
+        // fallback для открытия вне мини-аппа
+        const shareUrl =
+            'https://t.me/share/url?' +
+            'url=' + encodeURIComponent(link) +
+            '&text=' + encodeURIComponent(text);
+
+        window.open(shareUrl, '_blank');
     }
 
     if (tg && tg.HapticFeedback) {
         tg.HapticFeedback.impactOccurred('light');
     }
 };
+
 
 
 
