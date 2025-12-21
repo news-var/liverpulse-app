@@ -319,15 +319,16 @@ function formatInviteRow(r) {
     return { claimed, status, name };
 }
 
-function buildReferralText(refLink) {
+function buildReferralText(inviteLink) {
     return [
         'Роби безкоштовні ставки на матчі Ліверпуля та вигравай призи!',
-        ``,
+        '',
         `Підпишись на канал Ліверпульс 👉 ${CHANNEL_INVITE_URL}`,
-        ``,
-        `Заходь у додаток та отримуй стартові 1000 балів 👉 ${refLink}`
+        '',
+        `Заходь у додаток та отримуй стартові 1000 балів 👉 ${inviteLink}`
     ].join('\n');
 }
+
 
 
 // ==========================================
@@ -1267,15 +1268,15 @@ window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    // Наш новый текст с реф-посиланням внизу
+    // Формируем сообщение с переносами строк и двумя ссылками
     const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
-        // ВАЖНО: передаём только text, БЕЗ параметра url
+        // ВАЖНО: передаем только text, БЕЗ параметра url
         const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
         tg.openTelegramLink(shareUrl);
     } else {
-        // fallback — просто копируем текст
+        // Fallback: просто копируем весь текст
         copyToClipboard(text);
         showSuccess('Текст запрошення скопійовано ✅');
     }
@@ -1284,6 +1285,8 @@ window.shareReferralLink = () => {
         tg.HapticFeedback.impactOccurred('light');
     }
 };
+
+
 
 
 
