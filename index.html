@@ -372,7 +372,7 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
-        // Адаптивні розміри шрифтів залежно від довжини назви
+        // Адаптивні розміри шрифтів
         const getNameClass = (len) => {
             if (len >= 20) return 'text-xs sm:text-sm';
             if (len >= 16) return 'text-sm sm:text-base';
@@ -387,42 +387,38 @@ function renderMatches() {
         if (m.status === 'finished') {
             return `
                 <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
-                    <!-- Фіксована сітка: лого(40px) + назва(flex) + рахунок(auto) + назва(flex) + лого(40px) -->
-                    <div class="grid grid-cols-[40px_1fr_auto_1fr_40px] items-center gap-2 mb-2">
+                    <!-- Сітка з обмеженими колонками для назв -->
+                    <div class="flex items-center justify-between gap-2 mb-2">
                         
-                        <!-- ЛОГО ГОСПОДАРІВ (фіксована ширина 40px, вирівняно по лівому краю) -->
-                        <div class="flex items-center justify-start">
-                            ${homeLogo 
-                                ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-8 h-8"></div>`
-                            }
-                        </div>
-
-                        <!-- НАЗВА ГОСПОДАРІВ (flex, вирівняно ліворуч, може переноситись) -->
-                        <div class="flex items-center justify-start min-w-0">
-                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
+                        <!-- ЛІВА ЧАСТИНА: лого + назва господарів -->
+                        <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%]">
+                            <div class="flex-shrink-0 w-8">
+                                ${homeLogo 
+                                    ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                    : `<div class="w-8 h-8"></div>`
+                                }
+                            </div>
+                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words min-w-0">
                                 ${m.home_team}
                             </p>
                         </div>
 
-                        <!-- РАХУНОК (фіксована ширина, по центру) -->
-                        <div class="px-3 text-2xl sm:text-3xl font-bold text-red-700 whitespace-nowrap">
+                        <!-- ЦЕНТР: рахунок -->
+                        <div class="flex-shrink-0 px-3 text-2xl sm:text-3xl font-bold text-red-700 whitespace-nowrap">
                             ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
                         </div>
 
-                        <!-- НАЗВА ГОСТЕЙ (flex, вирівняно праворуч, може переноситись) -->
-                        <div class="flex items-center justify-end min-w-0">
-                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
+                        <!-- ПРАВА ЧАСТИНА: назва гостей + лого -->
+                        <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%] flex-row-reverse">
+                            <div class="flex-shrink-0 w-8">
+                                ${awayLogo 
+                                    ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                    : `<div class="w-8 h-8"></div>`
+                                }
+                            </div>
+                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words min-w-0">
                                 ${m.away_team}
                             </p>
-                        </div>
-
-                        <!-- ЛОГО ГОСТЕЙ (фіксована ширина 40px, вирівняно по правому краю) -->
-                        <div class="flex items-center justify-end">
-                            ${awayLogo 
-                                ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-8 h-8"></div>`
-                            }
                         </div>
                     </div>
 
@@ -756,42 +752,38 @@ function renderMatches() {
         // ===== КАРТОЧКА ДЛЯ МАЙБУТНІХ/LIVE/LOCKED МАТЧІВ =====
         return `
             <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                <!-- Та сама фіксована сітка як у завершених -->
-                <div class="grid grid-cols-[40px_1fr_auto_1fr_40px] items-center gap-2 mb-3">
+                <!-- Flexbox з обмеженнями замість grid -->
+                <div class="flex items-center justify-between gap-2 mb-3">
                     
-                    <!-- ЛОГО ГОСПОДАРІВ -->
-                    <div class="flex items-center justify-start">
-                        ${homeLogo 
-                            ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                            : `<div class="w-8 h-8"></div>`
-                        }
-                    </div>
-
-                    <!-- НАЗВА ГОСПОДАРІВ -->
-                    <div class="flex items-center justify-start min-w-0">
-                        <p class="font-bold ${homeNameClass} text-left leading-tight break-words">
+                    <!-- ЛІВА ЧАСТИНА -->
+                    <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%]">
+                        <div class="flex-shrink-0 w-8">
+                            ${homeLogo 
+                                ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                : `<div class="w-8 h-8"></div>`
+                            }
+                        </div>
+                        <p class="font-bold ${homeNameClass} text-left leading-tight break-words min-w-0">
                             ${m.home_team}
                         </p>
                     </div>
 
-                    <!-- VS (центр) -->
-                    <div class="px-3 text-2xl sm:text-3xl font-bold text-gray-400 whitespace-nowrap">
+                    <!-- ЦЕНТР -->
+                    <div class="flex-shrink-0 px-3 text-2xl sm:text-3xl font-bold text-gray-400 whitespace-nowrap">
                         VS
                     </div>
 
-                    <!-- НАЗВА ГОСТЕЙ -->
-                    <div class="flex items-center justify-end min-w-0">
-                        <p class="font-bold ${awayNameClass} text-right leading-tight break-words">
+                    <!-- ПРАВА ЧАСТИНА -->
+                    <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%] flex-row-reverse">
+                        <div class="flex-shrink-0 w-8">
+                            ${awayLogo 
+                                ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                : `<div class="w-8 h-8"></div>`
+                            }
+                        </div>
+                        <p class="font-bold ${awayNameClass} text-right leading-tight break-words min-w-0">
                             ${m.away_team}
                         </p>
-                    </div>
-
-                    <!-- ЛОГО ГОСТЕЙ -->
-                    <div class="flex items-center justify-end">
-                        ${awayLogo 
-                            ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                            : `<div class="w-8 h-8"></div>`
-                        }
                     </div>
                 </div>
 
