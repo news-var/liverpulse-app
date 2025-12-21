@@ -372,12 +372,12 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
-        // Адаптивні розміри шрифтів
+        // Адаптивні розміри шрифтів з урахуванням реальної ширини Mini App
         const getNameClass = (len) => {
-            if (len >= 20) return 'text-xs sm:text-sm';
-            if (len >= 16) return 'text-sm sm:text-base';
-            if (len >= 12) return 'text-base sm:text-lg';
-            return 'text-lg sm:text-xl';
+            if (len >= 18) return 'text-[10px] leading-tight';
+            if (len >= 14) return 'text-xs leading-tight';
+            if (len >= 11) return 'text-sm leading-tight';
+            return 'text-base leading-tight';
         };
 
         const homeNameClass = getNameClass(homeLen);
@@ -386,93 +386,92 @@ function renderMatches() {
         // ===== ЗАВЕРШЕНИЙ МАТЧ =====
         if (m.status === 'finished') {
             return `
-                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-4">
-                    <!-- Сітка з обмеженими колонками для назв -->
-                    <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-3">
+                    <div class="flex items-center justify-between gap-1.5 mb-2">
                         
-                        <!-- ЛІВА ЧАСТИНА: лого + назва господарів -->
-                        <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%]">
-                            <div class="flex-shrink-0 w-8">
+                        <!-- ЛІВА ЧАСТИНА: лого + назва -->
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            <div class="flex-shrink-0">
                                 ${homeLogo 
-                                    ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                    : `<div class="w-8 h-8"></div>`
+                                    ? `<img src="${homeLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                    : `<div class="w-7 h-7"></div>`
                                 }
                             </div>
-                            <p class="font-bold ${homeNameClass} text-left leading-tight break-words min-w-0">
+                            <p class="font-bold ${homeNameClass} text-left truncate">
                                 ${m.home_team}
                             </p>
                         </div>
 
                         <!-- ЦЕНТР: рахунок -->
-                        <div class="flex-shrink-0 px-3 text-2xl sm:text-3xl font-bold text-red-700 whitespace-nowrap">
-                            ${m.home_score ?? '-'} : ${m.away_score ?? '-'}
+                        <div class="flex-shrink-0 px-2 text-xl font-bold text-red-700 whitespace-nowrap">
+                            ${m.home_score ?? '-'}:${m.away_score ?? '-'}
                         </div>
 
-                        <!-- ПРАВА ЧАСТИНА: назва гостей + лого -->
-                        <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%] flex-row-reverse">
-                            <div class="flex-shrink-0 w-8">
+                        <!-- ПРАВА ЧАСТИНА: назва + лого -->
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1 flex-row-reverse">
+                            <div class="flex-shrink-0">
                                 ${awayLogo 
-                                    ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                    : `<div class="w-8 h-8"></div>`
+                                    ? `<img src="${awayLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                    : `<div class="w-7 h-7"></div>`
                                 }
                             </div>
-                            <p class="font-bold ${awayNameClass} text-right leading-tight break-words min-w-0">
+                            <p class="font-bold ${awayNameClass} text-right truncate">
                                 ${m.away_team}
                             </p>
                         </div>
                     </div>
 
-                    <div class="text-center text-sm text-gray-500 mt-2">
+                    <div class="text-center text-xs text-gray-500 mt-2">
                         📅 ${formatDate(m.match_date)}
                     </div>
                     ${m.competition ? `
-                        <div class="text-center text-xs text-gray-400 mt-1">
+                        <div class="text-center text-[10px] text-gray-400 mt-0.5">
                             🏆 ${m.competition}
                         </div>
                     ` : ''}
-                    <div class="text-center text-sm font-semibold text-red-700 mt-1">
+                    <div class="text-center text-xs font-semibold text-red-700 mt-1">
                         Матч завершено
                     </div>
                 </div>
             `;
         }
 
-        // ===== БЛОК СТАТУСУ ДЛЯ НЕЗАВЕРШЕНИХ =====
+        // ===== БЛОК СТАТУСУ =====
         let statusBlock = '';
         if (m.status === 'locked') {
             statusBlock = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-sm mt-2">
-                    🔒 Ставки закриті (матч скоро почнеться)
+                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-xs mt-2">
+                    🔒 Ставки закриті
                 </div>
             `;
         } else if (m.status === 'live') {
             statusBlock = `
-                <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-sm mt-2">
-                    🟢 Матч триває, ставки закриті
+                <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-xs mt-2">
+                    🟢 Матч триває
                 </div>
             `;
         }
 
         const canBet = m.status === 'upcoming';
 
-        // ===== DOUBLE CHANCE 1X / 12 / X2 =====
+        // ===== DOUBLE CHANCE =====
         const dc = canBet ? computeDoubleChanceOdds(m) : null;
         const doubleChanceRow = (canBet && dc) ? `
             <div class="grid grid-cols-3 gap-2 mt-2">
                 <button onclick="openBet(${m.id}, '1X2', '1X', ${dc['1X']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">1X</p>
-                    <p class="font-bold text-slate-700">${dc['1X']}</p>
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
+                    <p class="text-[10px] text-gray-600">1X</p>
+                    <p class="font-bold text-sm text-slate-700">${dc['1X']}</p>
                 </button>
                 <button onclick="openBet(${m.id}, '1X2', '12', ${dc['12']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">12</p>
-                    <p class="font-bold text-slate-700">${dc['12']}</p>
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
+                    <p class="text-[10px] text-gray-600">12</p>
+                    <p class="font-bold text-sm text-slate-700">${dc['12']}</p>
                 </button>
                 <button onclick="openBet(${m.id}, '1X2', 'X2', ${dc['X2']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-2 active:scale-95">
-                    <p class="text-xs text-gray-600">X2</p>
-                    <p class="font-bold text-slate-700">${dc['X2']}</p>
+                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
+                    <p class="text-[10px] text-gray-600">X2</p>
+                    <p class="font-bold text-sm text-slate-700">${dc['X2']}</p>
                 </button>
             </div>
         ` : '';
@@ -509,32 +508,32 @@ function renderMatches() {
                 const isOpen = !!(state.expanded.totals[m.id]);
 
                 totalsBlock = `
-                    <div class="mt-3">
+                    <div class="mt-2">
                         <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
                             onclick="toggleTotals(${m.id})"
                         >
-                            <span>Ставки на тотал</span>
+                            <span>Тотали</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-2 space-y-2">
+                            <div class="mt-1.5 space-y-1.5">
                                 ${rows.map(row => {
                                     const underDisabled = !row.under;
                                     const overDisabled = !row.over;
                                     return `
-                                        <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div class="grid grid-cols-2 gap-1.5 text-xs">
                                             <button
                                                 ${underDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     underDisabled
                                                         ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
                                                         : 'bg-red-50 hover:bg-red-100 border border-red-200 active:scale-95'
-                                                } rounded-md py-2 px-2"
+                                                } rounded-md py-1.5 px-1"
                                                 ${underDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"`}
                                             >
-                                                <span class="text-[11px] text-gray-600">ТМ ${row.pt}</span>
-                                                <span class="font-bold ${underDisabled ? 'text-gray-400' : 'text-red-700'}">
+                                                <span class="text-[10px] text-gray-600">ТМ ${row.pt}</span>
+                                                <span class="font-bold text-sm ${underDisabled ? 'text-gray-400' : 'text-red-700'}">
                                                     ${row.under ?? '-'}
                                                 </span>
                                             </button>
@@ -544,11 +543,11 @@ function renderMatches() {
                                                     overDisabled
                                                         ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
                                                         : 'bg-green-50 hover:bg-green-100 border border-green-200 active:scale-95'
-                                                } rounded-md py-2 px-2"
+                                                } rounded-md py-1.5 px-1"
                                                 ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}
                                             >
-                                                <span class="text-[11px] text-gray-600">ТБ ${row.pt}</span>
-                                                <span class="font-bold ${overDisabled ? 'text-gray-400' : 'text-green-700'}">
+                                                <span class="text-[10px] text-gray-600">ТБ ${row.pt}</span>
+                                                <span class="font-bold text-sm ${overDisabled ? 'text-gray-400' : 'text-green-700'}">
                                                     ${row.over ?? '-'}
                                                 </span>
                                             </button>
@@ -656,32 +655,32 @@ function renderMatches() {
                 const isOpen = !!(state.expanded.handicaps[m.id]);
 
                 handicapsBlock = `
-                    <div class="mt-3">
+                    <div class="mt-2">
                         <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
                             onclick="toggleHandicaps(${m.id})"
                         >
-                            <span>Ставки з форою</span>
+                            <span>Фори</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-2 space-y-2">
+                            <div class="mt-1.5 space-y-1.5">
                                 ${rows.map(row => {
                                     const hDisabled = !row.homeOdds;
                                     const aDisabled = !row.awayOdds;
                                     return `
-                                        <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div class="grid grid-cols-2 gap-1.5 text-xs">
                                             <button
                                                 ${hDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     hDisabled
                                                         ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
                                                         : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
-                                                } py-2 px-2"
+                                                } py-1.5 px-1"
                                                 ${hDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel1}', ${row.homeOdds})"`}
                                             >
-                                                <span class="text-[11px] text-gray-600">${row.lbl1}</span>
-                                                <span class="font-bold ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">
+                                                <span class="text-[10px] text-gray-600">${row.lbl1}</span>
+                                                <span class="font-bold text-sm ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">
                                                     ${row.homeOdds ?? '-'}
                                                 </span>
                                             </button>
@@ -691,11 +690,11 @@ function renderMatches() {
                                                     aDisabled
                                                         ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
                                                         : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
-                                                } py-2 px-2"
+                                                } py-1.5 px-1"
                                                 ${aDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel2}', ${row.awayOdds})"`}
                                             >
-                                                <span class="text-[11px] text-gray-600">${row.lbl2}</span>
-                                                <span class="font-bold ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">
+                                                <span class="text-[10px] text-gray-600">${row.lbl2}</span>
+                                                <span class="font-bold text-sm ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">
                                                     ${row.awayOdds ?? '-'}
                                                 </span>
                                             </button>
@@ -724,16 +723,16 @@ function renderMatches() {
             if (filtered.length > 0) {
                 const isOpen = !!(state.expanded.correctScore[m.id]);
                 correctScoreBlock = `
-                    <div class="mt-3">
+                    <div class="mt-2">
                         <button
-                            class="w-full flex justify-between items-center text-[13px] font-semibold px-3 py-2 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
                             onclick="toggleCorrectScore(${m.id})"
                         >
-                            <span>Ставки на точний рахунок</span>
+                            <span>Точний рахунок</span>
                             <span>${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-2 grid grid-cols-3 gap-1 text-[11px]">
+                            <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
                                 ${filtered.map(cs => `
                                     <button
                                         class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
@@ -749,69 +748,68 @@ function renderMatches() {
             }
         }
 
-        // ===== КАРТОЧКА ДЛЯ МАЙБУТНІХ/LIVE/LOCKED МАТЧІВ =====
+        // ===== КАРТОЧКА =====
         return `
-            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                <!-- Flexbox з обмеженнями замість grid -->
-                <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="bg-white rounded-lg shadow-md p-3 border border-gray-200">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
                     
                     <!-- ЛІВА ЧАСТИНА -->
-                    <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%]">
-                        <div class="flex-shrink-0 w-8">
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                        <div class="flex-shrink-0">
                             ${homeLogo 
-                                ? `<img src="${homeLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-8 h-8"></div>`
+                                ? `<img src="${homeLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                : `<div class="w-7 h-7"></div>`
                             }
                         </div>
-                        <p class="font-bold ${homeNameClass} text-left leading-tight break-words min-w-0">
+                        <p class="font-bold ${homeNameClass} text-left truncate">
                             ${m.home_team}
                         </p>
                     </div>
 
                     <!-- ЦЕНТР -->
-                    <div class="flex-shrink-0 px-3 text-2xl sm:text-3xl font-bold text-gray-400 whitespace-nowrap">
+                    <div class="flex-shrink-0 px-2 text-xl font-bold text-gray-400 whitespace-nowrap">
                         VS
                     </div>
 
                     <!-- ПРАВА ЧАСТИНА -->
-                    <div class="flex items-center gap-2 min-w-0 flex-1 max-w-[40%] flex-row-reverse">
-                        <div class="flex-shrink-0 w-8">
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1 flex-row-reverse">
+                        <div class="flex-shrink-0">
                             ${awayLogo 
-                                ? `<img src="${awayLogo}" class="w-8 h-8 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-8 h-8"></div>`
+                                ? `<img src="${awayLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
+                                : `<div class="w-7 h-7"></div>`
                             }
                         </div>
-                        <p class="font-bold ${awayNameClass} text-right leading-tight break-words min-w-0">
+                        <p class="font-bold ${awayNameClass} text-right truncate">
                             ${m.away_team}
                         </p>
                     </div>
                 </div>
 
-                <div class="text-center text-sm text-gray-500">
+                <div class="text-center text-xs text-gray-500">
                     📅 ${formatDate(m.match_date)}
                 </div>
                 ${m.competition ? `
-                    <div class="text-center text-xs text-gray-400 mt-1 mb-2">
+                    <div class="text-center text-[10px] text-gray-400 mt-0.5 mb-1.5">
                         🏆 ${m.competition}
                     </div>
-                ` : `<div class="mt-2"></div>`}
+                ` : `<div class="mt-1.5"></div>`}
 
                 ${canBet ? `
                     <div class="grid grid-cols-3 gap-2">
                         <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
-                            class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-2 active:scale-95">
-                            <p class="text-xs text-gray-600">П1</p>
-                            <p class="font-bold text-green-700">${m.odds_home}</p>
+                            class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-1.5 active:scale-95">
+                            <p class="text-[10px] text-gray-600">П1</p>
+                            <p class="font-bold text-sm text-green-700">${m.odds_home}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
-                            class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-2 active:scale-95">
-                            <p class="text-xs text-gray-600">X</p>
-                            <p class="font-bold text-blue-700">${m.odds_draw}</p>
+                            class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-1.5 active:scale-95">
+                            <p class="text-[10px] text-gray-600">X</p>
+                            <p class="font-bold text-sm text-blue-700">${m.odds_draw}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
-                            class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-2 active:scale-95">
-                            <p class="text-xs text-gray-600">П2</p>
-                            <p class="font-bold text-red-700">${m.odds_away}</p>
+                            class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-1.5 active:scale-95">
+                            <p class="text-[10px] text-gray-600">П2</p>
+                            <p class="font-bold text-sm text-red-700">${m.odds_away}</p>
                         </button>
                     </div>
 
