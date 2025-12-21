@@ -322,7 +322,9 @@ function formatInviteRow(r) {
 function buildReferralText(refLink) {
     return [
         'Роби безкоштовні ставки на матчі Ліверпуля та вигравай призи!',
+        ``,
         `Підпишись на канал Ліверпульс 👉 ${CHANNEL_INVITE_URL}`,
+        ``,
         `Заходь у додаток та отримуй стартові 1000 балів 👉 ${refLink}`
     ].join('\n');
 }
@@ -1265,21 +1267,24 @@ window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    // Новый текст для друзів
+    // Наш новый текст с реф-посиланням внизу
     const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+        // ВАЖНО: передаём только text, БЕЗ параметра url
+        const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
         tg.openTelegramLink(shareUrl);
     } else {
-        // як fallback просто відкриваємо інвайт
-        window.open(link, '_blank');
+        // fallback — просто копируем текст
+        copyToClipboard(text);
+        showSuccess('Текст запрошення скопійовано ✅');
     }
 
     if (tg && tg.HapticFeedback) {
         tg.HapticFeedback.impactOccurred('light');
     }
 };
+
 
 
 
