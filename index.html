@@ -321,12 +321,16 @@ function formatInviteRow(r) {
 
 function buildReferralText(inviteLink) {
     return [
-        `Заходь у додаток та отримуй стартові 1000 балів ☝️'
+        // 1-й блок: інвайт у додаток
+        inviteLink,
+        'Заходь у додаток та отримуй стартові 1000 балів ☝️',
         '',
-        '${CHANNEL_INVITE_URL}`,
-        `Підпишись на канал Ліверпульс ☝️`,
+        // 2-й блок: посилання на канал
+        CHANNEL_INVITE_URL,
+        'Підпишись на канал Ліверпульс ☝️'
     ].join('\n');
 }
+
 
 
 
