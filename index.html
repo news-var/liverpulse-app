@@ -1142,7 +1142,15 @@ function renderReferralPage() {
                     </div>
                 `}
             </div>
-
+                
+            <div class="mt-3">
+                <button
+                    onclick="openSupportChat()"
+                    class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-semibold active:scale-95"
+                >
+                    Написати в підтримку
+                </button>
+            </div>
 
             <div>
                 <div class="text-sm font-semibold">Запрошені</div>
@@ -1365,10 +1373,20 @@ window.shareReferralLink = () => {
     }
 };
 
+window.openSupportChat = () => {
+    // ЗАМЕНИ ЭТОТ URL на реальный аккаунт саппорта
+    const url = 'https://t.me/varatar';
 
+    if (tg && typeof tg.openTelegramLink === 'function') {
+        tg.openTelegramLink(url);
+    } else {
+        window.open(url, '_blank');
+    }
 
-
-
+    if (tg && tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+};
 
 
 
