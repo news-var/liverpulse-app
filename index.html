@@ -331,7 +331,7 @@ function buildReferralText(inviteLink) {
     ].join('\n');
 }
 
-const LOGO_URL_LOAD = 'https://news-var.github.io/liverpulse-app/icon/liver1.png';
+const LOGO_URL_LOAD = 'https://news-var.github.io/liverpulse-app/icon/liver_load.png';
 const LOGO_URL_HEAD = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
 
 
@@ -353,7 +353,7 @@ function renderHeader() {
                     <img
                         src="${LOGO_URL_HEAD}"
                         alt="Ліверпульс"
-                        class="w-25 h-25 object-contain"
+                        class="w-15 h-15 object-contain"
                     />
                 </div>
 
@@ -1181,7 +1181,7 @@ function render() {
 
     if (state.loading) {
         app.innerHTML = `
-            <div class="flex items-center justify-center min-h-screen">
+            <div class="fixed inset-0 flex items-center justify-center">
                 <div class="text-center">
                     <img
                         src="${LOGO_URL_LOAD}"
