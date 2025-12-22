@@ -1140,12 +1140,10 @@ function renderReferralPage() {
                     </div>
 
                     <div class="flex gap-2 mt-2">
-                        <button
-                            onclick="handleCreateReferral()"
-                            class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg py-2 font-semibold active:scale-95"
-                        >
-                            ${link ? 'Оновити посилання' : 'Створити посилання'}
-                        </button>
+                        ${!link
+                            ? '<button onclick="handleCreateReferral()" class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg py-2 font-semibold active:scale-95">Створити посилання</button>'
+                            : ''
+                        }
                         <button
                             onclick="shareReferralLink()"
                             class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-semibold active:scale-95"
@@ -1168,7 +1166,7 @@ function renderReferralPage() {
                     onclick="openSupportChat()"
                     class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-semibold active:scale-95"
                 >
-                    Написати в підтримку
+                    Написати в підтримку 🆘
                 </button>
             </div>
 
