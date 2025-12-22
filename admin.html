@@ -531,41 +531,62 @@
                 return;
             }
 
+            let text = `Юзер: ${data.user.username} (id: ${data.user.id})\n\n`;
+
             if (!data.bets.length) {
-                box.textContent = `Ставок не знайдено для ${data.user.username}`;
-                return;
+                text += 'Ставок не знайдено\n';
+            } else {
+                const lines = data.bets.map(b => {
+                    const matchTitle = b.match_home && b.match_away
+                        ? `${b.match_home} – ${b.match_away}`
+                        : `Матч #${b.match_id}`;
+                    const resScore = (b.home_score != null && b.away_score != null)
+                        ? ` | Рахунок: ${b.home_score}:${b.away_score}`
+                        : '';
+                    const statusMap = {
+                        pending: 'очікування',
+                        won: 'виграш',
+                        lost: 'програш',
+                        refund: 'повернення'
+                    };
+                    const status = statusMap[b.status] || b.status;
+
+                    return `#${b.id} | ${formatDateTime(b.created_at)} | ${matchTitle}` +
+                        (b.competition ? ` (${b.competition})` : '') +
+                        `\n  Ставка: ${b.bet_type} – ${b.selection}, статус: ${status}` +
+                        `\n  Коеф.: ${b.odds}, сума: ${b.stake}, потенц. виграш: ${b.potential_win}` +
+                        (b.user_points_after != null ? `, баланс після: ${b.user_points_after}` : '') +
+                        resScore +
+                        `\n`;
+                });
+
+                text += lines.join('\n');
             }
 
-            const lines = data.bets.map(b => {
-                const matchTitle = b.match_home && b.match_away
-                    ? `${b.match_home} – ${b.match_away}`
-                    : `Матч #${b.match_id}`;
-                const resScore = (b.home_score != null && b.away_score != null)
-                    ? ` | Рахунок: ${b.home_score}:${b.away_score}`
-                    : '';
-                const statusMap = {
-                    pending: 'очікування',
-                    won: 'виграш',
-                    lost: 'програш',
-                    refund: 'повернення'
-                };
-                const status = statusMap[b.status] || b.status;
+            // ==== блок рефералов ====
+            const refs = Array.isArray(data.referrals) ? data.referrals : [];
+            const refCount = data.referral_count != null
+                ? data.referral_count
+                : refs.length;
 
-                return `#${b.id} | ${formatDateTime(b.created_at)} | ${matchTitle}` +
-                    (b.competition ? ` (${b.competition})` : '') +
-                    `\n  Ставка: ${b.bet_type} – ${b.selection}, статус: ${status}` +
-                    `\n  Коеф.: ${b.odds}, сума: ${b.stake}, потенц. виграш: ${b.potential_win}` +
-                    (b.user_points_after != null ? `, баланс після: ${b.user_points_after}` : '') +
-                    resScore +
-                    `\n`;
-            });
+            text += `\nРефералів: ${refCount}\n`;
 
+            if (refs.length) {
+                refs.forEach((r, idx) => {
+                    const nick = r.invited_username || 'без ніку';
+                    const id = r.invited_id != null ? r.invited_id : '—';
+                    const status = r.rewarded ? 'бонус нараховано' : 'без бонусу';
+                    const dt = r.created_at ? `, дата: ${formatDateTime(r.created_at)}` : '';
+                    text += `${idx + 1}. ${nick} (id: ${id}), ${status}${dt}\n`;
+                });
+            }
 
-            box.textContent = `Юзер: ${data.user.username} (id: ${data.user.id})\n\n` + lines.join('\n');
+            box.textContent = text;
         } catch (error) {
             box.textContent = `Помилка: ${error.message}`;
         }
     }
+
 
     // ---------- Download all bets CSV ----------
     async function downloadAllBets() {
@@ -843,6 +864,7 @@
 </script>
 </body>
 </html>
+
 
 
 
