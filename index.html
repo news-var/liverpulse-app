@@ -353,7 +353,7 @@ function renderHeader() {
                     <img
                         src="${LOGO_URL_HEAD}"
                         alt="Ліверпульс"
-                        class="w-15 h-15 object-contain"
+                        class="w-10 h-10 object-contain"
                     />
                 </div>
 
@@ -1181,12 +1181,12 @@ function render() {
 
     if (state.loading) {
         app.innerHTML = `
-            <div class="fixed inset-0 flex items-center justify-center">
+            <div class="flex items-center justify-center min-h-screen">
                 <div class="text-center">
                     <img
                         src="${LOGO_URL_LOAD}"
                         alt="Ліверпульс"
-                        class="w-20 h-20 object-contain mb-4"
+                        class="w-25 h-25 object-contain mb-4 mx-auto"
                     />
                     <p class="text-gray-600">Завантаження...</p>
                 </div>
