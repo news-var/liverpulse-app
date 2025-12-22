@@ -332,7 +332,7 @@ function buildReferralText(inviteLink) {
 }
 
 const LOGO_URL_LOAD = 'https://news-var.github.io/liverpulse-app/icon/liver1.png';
-const LOGO_URL_HEAD = 'https://news-var.github.io/liverpulse-app/icon/liver2.png';
+const LOGO_URL_HEAD = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
 
 
 // ==========================================
@@ -344,8 +344,8 @@ function renderHeader() {
             <div class="grid grid-cols-3 items-center">
                 <!-- Левый блок: ник + название, выровнено по левому краю -->
                 <div class="flex flex-col">
-                    <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
                     <h1 class="text-xl font-bold">Ліверпульс</h1>
+                    <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
                 </div>
 
                 <!-- Центр: логотип строго по центру -->
@@ -1073,8 +1073,9 @@ function renderReferralPage() {
             <h2 class="text-xl font-bold mb-2">👥 Реферали</h2>
             <p class="text-sm text-gray-600 mb-4">
                 Запроси до <span class="font-semibold">10</span> друзів і отримай
-                <span class="font-semibold">50</span> балів за кожного, хто підпишеться на канал Ліверпульс
-                і зайде в міні-додаток.
+                <span class="font-semibold">50</span> балів за кожного, хто виконає дві умови:
+                <br>1. Зайде у цей <span class="font-semibold">Додаток</span> по інвайт-посиланню нижче;
+                <br>2. Підпишеться на канал <span class="font-semibold">Ліверпульс</span> по посиланню нижче.
             </p>
 
             <div class="grid grid-cols-3 gap-2 mb-4">
@@ -1185,7 +1186,7 @@ function render() {
                     <img
                         src="${LOGO_URL_LOAD}"
                         alt="Ліверпульс"
-                        class="w-25 h-25 object-contain mb-4"
+                        class="w-20 h-20 object-contain mb-4"
                     />
                     <p class="text-gray-600">Завантаження...</p>
                 </div>
