@@ -332,7 +332,9 @@ function buildReferralText(inviteLink) {
 }
 
 const LOGO_URL_LOAD = 'https://news-var.github.io/liverpulse-app/icon/liver_load.png';
-const LOGO_URL_HEAD = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
+const LOGO_URL_HEADER = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
+const LOGO_SIZE = "72px"; // подбери под себя: 64px, 72px, 80px и т.д.
+
 
 
 // ==========================================
@@ -341,23 +343,19 @@ const LOGO_URL_HEAD = 'https://news-var.github.io/liverpulse-app/icon/liver_head
 function renderHeader() {
     return `
         <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 sticky top-0 z-10 shadow-lg">
-            <div class="grid grid-cols-3 items-center">
-                <!-- Левый блок: ник + название, выровнено по левому краю -->
-                <div class="flex flex-col">
+            <div class="flex items-center">
+                <div class="flex-1">
+                    <p class="text-sm opacity-90">@${state.user?.telegram_username || "Гравець"}</p>
                     <h1 class="text-xl font-bold">Ліверпульс</h1>
-                    <p class="text-sm opacity-90">@${state.user?.telegram_username || 'Гравець'}</p>
                 </div>
-
-                <!-- Центр: логотип строго по центру -->
-                <div class="flex justify-center">
+                <div class="flex-1 flex justify-center">
                     <img
-                        src="${LOGO_URL_HEAD}"
+                        src="${LOGO_URL_HEADER}"
                         alt="Ліверпульс"
-                        class="w-18 h-18 object-contain"
+                        class="block"
+                        style="width:${LOGO_SIZE};height:${LOGO_SIZE};object-fit:contain;"
                     />
                 </div>
-
-                <!-- Правый блок: баланс -->
                 <div class="text-right">
                     <p class="text-sm opacity-90">Баланс</p>
                     <p class="text-2xl font-bold">${state.user?.points || 0}</p>
@@ -366,6 +364,7 @@ function renderHeader() {
         </div>
     `;
 }
+
 
 
 function renderMatches() {
@@ -1186,14 +1185,16 @@ function render() {
                     <img
                         src="${LOGO_URL_LOAD}"
                         alt="Ліверпульс"
-                        class="w-20 h-20 object-contain mb-4 mx-auto"
+                        class="block mx-auto"
+                        style="width:${LOGO_SIZE};height:${LOGO_SIZE};object-fit:contain;"
                     />
-                    <p class="text-gray-600">Завантаження...</p>
+                    <p class="text-gray-600 mt-2">Завантаження...</p>
                 </div>
             </div>
         `;
         return;
     }
+
 
 
     let content = '';
