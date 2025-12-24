@@ -328,8 +328,8 @@ function buildReferralText(inviteLink) {
         '',
         // 2-й блок: посилання на канал
         CHANNEL_INVITE_URL,
-        'Підпишись на канал Ліверпульс ☝️'
-        '',
+        'Підпишись на канал Ліверпульс ☝️',
+        '',  // ← ДОБАВИЛ ЗАПЯТУЮ
         BOT_INVITE_URL,
         'Заходь у Бот та отримуй сповіщення про нові матчі ☝️'
     ].join('\n');
@@ -1320,7 +1320,7 @@ window.toggleCorrectScore = (matchId) => {
 // РЕФЕРАЛКА: ГЛОБАЛЬНЫЕ ХЭНДЛЕРЫ (НОВОЕ)
 // ==========================================
 window.refreshReferral = async () => {
-    // не даём спамить по кнопке, пока уже грузится
+    // не даємо спамити по кнопці, пока уже грузится
     if (state.referralLoading) return;
 
     state.referralLoading = true;
@@ -1328,7 +1328,7 @@ window.refreshReferral = async () => {
 
     try {
         // 1) дергаем бэк, чтобы он пересчитал награды по всем твоим инвайтам
-        await apiPost('/api/referral/resync', {});
+        await apiRequest('/api/referral/resync', { method: 'POST', body: JSON.stringify({}) });
 
         // 2) подтягиваем свежую сводку (как и раньше)
         await loadReferralSummary();
