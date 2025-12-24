@@ -38,6 +38,7 @@ const CONFIG = {
 // ==========================================
 // TELEGRAM
 // ==========================================
+const BOT_INVITE_URL = "@liverpulse_bet_bot";
 const CHANNEL_INVITE_URL = "https://t.me/+EfgNYA-6K75iZTVi";
 const tg = window.Telegram?.WebApp;
 if (tg && CONFIG.USE_TELEGRAM) {
@@ -328,6 +329,9 @@ function buildReferralText(inviteLink) {
         // 2-й блок: посилання на канал
         CHANNEL_INVITE_URL,
         'Підпишись на канал Ліверпульс ☝️'
+        '',
+        BOT_INVITE_URL,
+        'Заходь у Бот та отримуй сповіщення про нові матчі ☝️'
     ].join('\n');
 }
 
@@ -1316,16 +1320,29 @@ window.toggleCorrectScore = (matchId) => {
 // РЕФЕРАЛКА: ГЛОБАЛЬНЫЕ ХЭНДЛЕРЫ (НОВОЕ)
 // ==========================================
 window.refreshReferral = async () => {
+    // не даём спамить по кнопке, пока уже грузится
+    if (state.referralLoading) return;
+
     state.referralLoading = true;
     render();
+
     try {
+        // 1) дергаем бэк, чтобы он пересчитал награды по всем твоим инвайтам
+        await apiPost('/api/referral/resync', {});
+
+        // 2) подтягиваем свежую сводку (как и раньше)
         await loadReferralSummary();
+    } catch (e) {
+        console.error('referral resync error', e);
+        alert('Не вдалося оновити рефералів, спробуй ще раз.');
     } finally {
         state.referralLoading = false;
         render();
     }
+
     if (tg) tg.HapticFeedback.impactOccurred('light');
 };
+
 
 window.handleCreateReferral = async () => {
     state.referralLoading = true;
@@ -1419,6 +1436,7 @@ window.openSupportChat = () => {
 // ==========================================
 // ІНІЦІАЛІЗАЦІЯ
 // ==========================================
+  
 async function init() {
     try {
         state.loading = true;
