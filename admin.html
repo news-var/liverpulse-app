@@ -192,6 +192,49 @@
 
         <hr class="my-2">
 
+        <!-- 🎯 РУЧНАЯ РАБОТА С МАТЧАМИ -->
+        <section class="space-y-4">
+            <h2 class="text-lg sm:text-xl font-bold">🎯 Ручна робота з матчами</h2>
+    
+            <div class="space-y-2">
+                <p class="text-xs text-gray-600">
+                    Якщо статус матчу або ставки не оновилися автоматично - використовуй ці функції.
+                    Матчі автоматично перевіряються кожні 6 хвилин.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input 
+                        id="manualMatchId"
+                        type="number"
+                        class="border px-3 py-2 rounded-lg text-sm w-full sm:w-40"
+                        placeholder="ID матчу"
+                    />
+                    <button 
+                        onclick="manualCheckMatchStatus()"
+                        class="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-700"
+                    >
+                        🔍 Перевірити статус матчу
+                    </button>
+                    <button 
+                        onclick="manualSettleAllMatchBets()"
+                        class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"
+                    >
+                        📊 Розрахувати ставки матчу
+                    </button>
+                </div>
+
+                <div id="manualStatusOutput"
+                     class="hidden text-xs bg-blue-50 border border-blue-200 rounded-lg p-3 whitespace-pre-wrap max-h-[300px] overflow-auto font-mono">
+                </div>
+
+                <div id="manualSettleOutput"
+                     class="hidden text-xs bg-green-50 border border-green-200 rounded-lg p-3 whitespace-pre-wrap max-h-[300px] overflow-auto font-mono">
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-2">
+
         <!-- ЕКСПОРТ СТАВОК + СТАТИСТИКА -->
         <section class="space-y-3">
             <h2 class="text-lg sm:text-xl font-bold">📄 Експорт ставок та статистика</h2>
@@ -1056,6 +1099,7 @@
 </script>
 </body>
 </html>
+
 
 
 
