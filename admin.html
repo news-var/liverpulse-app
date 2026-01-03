@@ -808,6 +808,198 @@
         showResult('✅ Ставки матчу перераховано', 'success');
     }
 
+    // ==========================================
+    // ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ АДМИНКИ
+    // Добавь эти функции в конец <script> блока в admin.html
+    // ==========================================
+
+    // ---------- Проверить/обновить статус матча вручную ----------
+    async function manualCheckMatchStatus() {
+        const matchId = Number(document.getElementById('manualMatchId').value);
+        const out = document.getElementById('manualStatusOutput');
+
+        if (!matchId) {
+            showResult('Вкажіть ID матчу', 'error');
+            return;
+        }
+
+        out.textContent = 'Завантаження матчу...';
+        out.classList.remove('hidden');
+
+        try {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+
+            // Получаем информацию о матче
+            const resp = await fetch(`${apiUrl}/api/admin/match-info?id=${matchId}`, {
+                headers: { 'X-Admin-Key': adminKey }
+            });
+
+            if (!resp.ok) {
+                out.textContent = `Помилка: ${resp.status}`;
+                return;
+            }
+
+            const data = await resp.json();
+
+            if (!data.ok) {
+                out.textContent = `Матч не знайдено`;
+                return;
+            }
+
+            const match = data.match;
+            const now = new Date();
+            const matchTime = new Date(match.match_date);
+            const minutesUntilStart = (matchTime - now) / 60000;
+            const minutesSinceStart = (now - matchTime) / 60000;
+
+            let info = `
+    📌 ІНФОРМАЦІЯ ПРО МАТЧ
+    ═══════════════════════════════════
+    Матч: ${match.home_team} vs ${match.away_team}
+    ID: ${match.id}
+    Дата: ${formatDateTime(match.match_date)}
+    Статус: ${match.status}
+    Турнір: ${match.competition || '—'}
+
+    `;
+
+            if (match.status === 'upcoming') {
+                info += `⏳ Матч ще НЕ почався\n`;
+                info += `   До початку: ${minutesUntilStart.toFixed(0)} хвилин\n`;
+            } else if (match.status === 'locked') {
+                info += `🔒 Матч зараз ЗАКРИТИЙ (ставки закриті)\n`;
+            } else if (match.status === 'live') {
+                info += `🔴 Матч ВІДБУВАЄТЬСЯ\n`;
+                info += `   Йде ${minutesSinceStart.toFixed(0)} хвилин\n`;
+                if (match.home_score != null && match.away_score != null) {
+                    info += `   Рахунок: ${match.home_score}:${match.away_score}\n`;
+                } else {
+                    info += `   ⚠️ Рахунку ще немає у системі\n`;
+                }
+            } else if (match.status === 'finished') {
+                info += `✅ Матч ЗАВЕРШЕНО\n`;
+                if (match.home_score != null && match.away_score != null) {
+                    info += `   Фінальний рахунок: ${match.home_score}:${match.away_score}\n`;
+                } else {
+                    info += `   ⚠️ Рахунку немає\n`;
+                }
+            }
+
+            out.textContent = info;
+
+        } catch (error) {
+            out.textContent = `Помилка: ${error.message}`;
+        }
+    }
+
+
+    // ---------- Рассчитать все ставки матча вручную ----------
+    async function manualSettleAllMatchBets() {
+        const matchId = Number(document.getElementById('manualMatchId').value);
+        const out = document.getElementById('manualSettleOutput');
+
+        if (!matchId) {
+            showResult('Вкажіть ID матчу', 'error');
+            return;
+        }
+
+        out.textContent = 'Завантаження матчу та рахунку...';
+        out.classList.remove('hidden');
+
+        try {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+
+            // 1) Получаем матч
+            const infoResp = await fetch(`${apiUrl}/api/admin/match-info?id=${matchId}`, {
+                headers: { 'X-Admin-Key': adminKey }
+            });
+
+            if (!infoResp.ok) {
+                out.textContent = `Помилка при отриманні матчу`;
+                return;
+            }
+
+            const infoData = await infoResp.json();
+            if (!infoData.ok) {
+                out.textContent = `Матч не знайдено`;
+                return;
+            }
+
+            const match = infoData.match;
+
+            // 2) Проверяем, есть ли рахунок
+            if (match.home_score == null || match.away_score == null) {
+                out.textContent = `
+    ❌ ПОМИЛКА: Матч не має рахунку!
+
+    Матч: ${match.home_team} vs ${match.away_team}
+    Статус: ${match.status}
+
+    🔧 ЩО РОБИТИ:
+    1. Переконайся, що матч завершено в реальності
+    2. Скористайся "Форс-коеф (основні турніри)" в меню Service Actions
+       щоб оновити рахунки з Odds API
+    3. Зачекай 1-2 хвилини
+    4. Спробуй знову
+    `;
+                return;
+            }
+
+            // 3) Есть рахунок - вызываем API для расчета
+            const settleResp = await fetch(`${apiUrl}/api/admin/settle-match-manual`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Key': adminKey
+                },
+                body: JSON.stringify({
+                    matchId,
+                    homeScore: match.home_score,
+                    awayScore: match.away_score
+                })
+            });
+
+            const settleData = await settleResp.json();
+
+            if (settleResp.ok && settleData.ok) {
+                out.textContent = `
+    ✅ МАТЧ РОЗРАХОВАНО ВРУЧНУ
+
+    Матч: ${settleData.match}
+    Рахунок: ${match.home_score}:${match.away_score}
+
+    📊 РЕЗУЛЬТАТИ:
+      • Всього ставок розраховано: ${settleData.betsProcessed}
+      • Всього балів видано юзерам: ${settleData.totalCredited}
+
+    ${settleData.message}
+    `;
+                showResult(`✅ ${settleData.betsProcessed} ставок розраховано, ${settleData.totalCredited} балів видано`, 'success');
+            } else {
+                out.textContent = `Помилка при розрахунку: ${settleData.error || 'невідома помилка'}`;
+            }
+
+        } catch (error) {
+            out.textContent = `Помилка запиту: ${error.message}`;
+        }
+    }
+
+
+    // ---------- Helper функция для форматирования даты ----------
+    function formatDateTime(str) {
+        if (!str) return '';
+        const d = new Date(str);
+        return d.toLocaleString('uk-UA', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
     
     // ---------- Dashboard stats ----------
     async function loadStats() {
@@ -864,6 +1056,7 @@
 </script>
 </body>
 </html>
+
 
 
 
