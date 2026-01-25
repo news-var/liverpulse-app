@@ -216,37 +216,17 @@ function formatDate(dateStr) {
 // Логотипы команд
 function teamSlug(name) {
     if (!name) return '';
-    
-    // Нормализуем специальные символы
+
+    // Нормализуем специальные символы и приводим к slug
     const normalized = name
-        .normalize('NFD')                    // разбиваем диакритику
-        .replace(/[\u0300-\u036f]/g, '')    // убираем диакритику
+        .normalize('NFD')                 // разбиваем диакритику
+        .replace(/[\u0300-\u036f]/g, '')  // убираем диакритику
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')        // заменяем спецсимволы на _
-        .replace(/^_+|_+$/g, '');           // убираем ведущие/концевые _
-    
+        .replace(/[^a-z0-9]+/g, '_')      // заменяем всё лишнее на _
+        .replace(/^_+|_+$/g, '');         // убираем подчёркивания по краям
+
     return normalized;
 }
-```
-
-**Теперь назови картинку:**
-```
-qaraba_fk.png
-```
-
-или даже просто:
-```
-qarabag_fk.png
-```
-
-**Почему это работает:**
-- `Qarabağ FK` → нормализуется в `qarabag_fk`
-- `Qaraba\u011f FK` → нормализуется в `qarabag_fk` (ğ = g после удаления диакритики)
-
-**Если хочешь поддержать обе версии** — создай симлинк или сохрани картинку под обоими именами:
-```
-qarabag_fk.png
-qaraba_fk.png  (дополнительно, на случай если apI вернёт другую версию)
 
 function getTeamLogo(name) {
     if (!CONFIG.LOGO_BASE) return null;
