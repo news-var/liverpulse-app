@@ -195,7 +195,7 @@
         <!-- 🎯 РУЧНАЯ РАБОТА С МАТЧАМИ -->
         <section class="space-y-4">
             <h2 class="text-lg sm:text-xl font-bold">🎯 Ручна робота з матчами</h2>
-    
+
             <div class="space-y-2">
                 <p class="text-xs text-gray-600">
                     Якщо статус матчу або ставки не оновилися автоматично - використовуй ці функції.
@@ -215,25 +215,52 @@
                     >
                         🔍 Перевірити статус матчу
                     </button>
+                </div>
+
+                <!-- НОВОЕ: РУЧНОЙ ВВОД СЧЕТА -->
+                <div class="border-t pt-3 space-y-2">
+                    <h3 class="text-sm font-semibold">⚙️ РУЧНИЙ ВВІД РАХУНКУ</h3>
+                    <p class="text-[11px] text-gray-500">
+                        Якщо матч точно завершений, але рахунку немає в системі — введи його вручну.
+                        Система тоді розрахує всі ставки автоматично.
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs font-semibold">Рахунок хозяїн</label>
+                            <input 
+                                id="manualHomeScore"
+                                type="number"
+                                min="0"
+                                class="w-full border px-2 py-1.5 rounded text-sm"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold">Рахунок гість</label>
+                            <input 
+                                id="manualAwayScore"
+                                type="number"
+                                min="0"
+                                class="w-full border px-2 py-1.5 rounded text-sm"
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+
                     <button 
-                        onclick="manualSettleAllMatchBets()"
-                        class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"
+                        onclick="manualSetAndSettleMatch()"
+                        class="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"
                     >
-                        📊 Розрахувати ставки матчу
+                        ✅ Установить счет и рассчитать ставки
                     </button>
                 </div>
 
                 <div id="manualStatusOutput"
                      class="hidden text-xs bg-blue-50 border border-blue-200 rounded-lg p-3 whitespace-pre-wrap max-h-[300px] overflow-auto font-mono">
                 </div>
-
-                <div id="manualSettleOutput"
-                     class="hidden text-xs bg-green-50 border border-green-200 rounded-lg p-3 whitespace-pre-wrap max-h-[300px] overflow-auto font-mono">
-                </div>
             </div>
         </section>
-
-        <hr class="my-2">
 
         <!-- ЕКСПОРТ СТАВОК + СТАТИСТИКА -->
         <section class="space-y-3">
@@ -1045,6 +1072,65 @@
         });
     }
 
+    // ---------- Установить счет вручную И рассчитать ставки ----------
+    async function manualSetAndSettleMatch() {
+      const matchId = Number(document.getElementById('manualMatchId').value);
+      const homeScore = Number(document.getElementById('manualHomeScore').value);
+      const awayScore = Number(document.getElementById('manualAwayScore').value);
+      const out = document.getElementById('manualStatusOutput');
+
+      if (!matchId || !Number.isFinite(homeScore) || !Number.isFinite(awayScore)) {
+        showResult('Вкажіть ID матчу та обидва рахунки (числа)', 'error');
+        return;
+      }
+
+      out.textContent = 'Установка рахунку та розрахунок...';
+      out.classList.remove('hidden');
+
+      try {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        const resp = await fetch(`${apiUrl}/api/admin/settle-match-manual`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({
+            matchId,
+            homeScore,
+            awayScore
+          })
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+          out.textContent = `
+    ✅ МАТЧ ВСТАНОВЛЕНО ВРУЧНУ ТА РОЗРАХОВАНО
+
+    Матч: ${data.match}
+    Рахунок: ${homeScore}:${awayScore}
+
+    📊 РЕЗУЛЬТАТИ:
+      • Всього ставок розраховано: ${data.betsProcessed}
+      • Всього балів видано юзерам: ${data.totalCredited}
+
+    ${data.message}
+          `;
+          showResult(`✅ ${data.betsProcessed} ставок розраховано, ${data.totalCredited} балів видано`, 'success');
+        } else {
+          out.textContent = `❌ Помилка: ${data.error || 'невідома помилка'}`;
+          showResult(`Помилка: ${data.error}`, 'error');
+        }
+
+      } catch (error) {
+        out.textContent = `❌ Помилка запиту: ${error.message}`;
+        showResult(`Помилка: ${error.message}`, 'error');
+      }
+    }
+
     
     // ---------- Dashboard stats ----------
     async function loadStats() {
@@ -1101,6 +1187,7 @@
 </script>
 </body>
 </html>
+
 
 
 
