@@ -215,6 +215,20 @@
                     >
                         🔍 Перевірити статус матчу
                     </button>
+                    <button 
+                      onclick="forcePullScoreAndMaybeSettle()"
+                      class="w-full bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-800"
+                    >
+                      ⚡ Форс подтянуть счет и рассчитать
+                    </button>
+
+                    <button 
+                        onclick="settleMatchFromDbScore()"
+                        class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700"
+                    >
+                        📊 Рассчитать ставки по счету из базы
+                    </button>
+
                 </div>
 
                 <!-- НОВОЕ: РУЧНОЙ ВВОД СЧЕТА -->
@@ -320,8 +334,19 @@
         });
     }
 
+    function requireAdminKey() {
+        const adminKey = document.getElementById('adminKey').value.trim();
+        if (!adminKey) {
+            showResult('Вкажіть Admin Secret', 'error');
+            return false;
+        }
+        return true;
+    }
+
+
     // ---------- Broadcast ----------
     async function sendBroadcast() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const message = document.getElementById('broadcastMsg').value.trim();
@@ -356,6 +381,7 @@
 
     // ---------- Send to user ----------
     async function sendToUser() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
@@ -391,6 +417,7 @@
 
     // ---------- Оновлення матчів (з кеша) ----------
     async function refreshMatches(mode) {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
 
@@ -417,6 +444,7 @@
 
     // ---------- Форс коефіцієнтів (прямо в Odds API) ----------
     async function forceOdds(mode) {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
 
@@ -443,6 +471,7 @@
 
     // ---------- Reminder (upcoming) ----------
     async function sendReminderToSelf() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const userField = document.getElementById('userId').value.trim();
@@ -472,6 +501,7 @@
 
     // ---------- Reset all ratings ----------
     async function resetRating() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
 
@@ -497,6 +527,7 @@
 
     // ---------- Delete User (full remove) ----------
     async function deleteUser() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
@@ -533,6 +564,7 @@
     }
 
     async function recalcUser() {
+        if (!requireAdminKey()) return;
         const target = document.getElementById("userId").value.trim();
 
         if (!target) {
@@ -573,6 +605,7 @@
     
     // ---------- Fetch user bets ----------
     async function fetchUserBets() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
@@ -660,6 +693,7 @@
 
     // ---------- Download all bets CSV ----------
     async function downloadAllBets() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const daysField = document.getElementById('daysRange');
@@ -738,6 +772,7 @@
 
     // ---------- Block / unblock user ----------
     async function blockUser(block) {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
@@ -776,6 +811,7 @@
 
     // ---------- Reset one user's results ----------
     async function resetUserResults() {
+        if (!requireAdminKey()) return;
         const apiUrl = document.getElementById('apiUrl').value.trim();
         const adminKey = document.getElementById('adminKey').value.trim();
         const target = document.getElementById('userId').value.trim();
@@ -811,29 +847,37 @@
 
     // ---------- Admin helper ----------
     async function adminRequest(path, method = 'GET', body) {
-        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const apiUrl = document.getElementById('apiUrl').value.trim().replace(/\/+$/, '');
         const adminKey = document.getElementById('adminKey').value.trim();
 
-        const resp = await fetch(`${apiUrl}${path}`, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Key': adminKey
-            },
-            body: body ? JSON.stringify(body) : undefined
-        });
+        const headers = {
+            'X-Admin-Key': adminKey
+        };
 
+        const options = { method, headers };
+
+        if (body !== undefined) {
+            headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(body);
+        }
+
+        const resp = await fetch(`${apiUrl}${path}`, options);
+
+        const text = await resp.text();
         let data;
         try {
-            data = await resp.json();
-        } catch (e) {
-            data = { error: 'Invalid JSON' };
+            data = text ? JSON.parse(text) : {};
+        } catch (_) {
+            data = { error: text || 'Non-JSON response' };
         }
-        return { ok: resp.ok, data };
+
+        return { ok: resp.ok, status: resp.status, data };
     }
+
 
     // ---------- Recalc ONE bet ----------
     async function recalcBet() {
+        if (!requireAdminKey()) return;
         const betId = Number(document.getElementById('recalcBetId').value);
         const out = document.getElementById('recalcOutput');
 
@@ -857,6 +901,7 @@
 
     // ---------- Recalc ALL bets of match ----------
     async function recalcMatch() {
+        if (!requireAdminKey()) return;
         const matchId = Number(document.getElementById('recalcMatchId').value);
         const out = document.getElementById('recalcOutput');
 
@@ -885,6 +930,7 @@
 
     // ---------- Проверить/обновить статус матча вручную ----------
     async function manualCheckMatchStatus() {
+        if (!requireAdminKey()) return;
         const matchId = Number(document.getElementById('manualMatchId').value);
         const out = document.getElementById('manualStatusOutput');
 
@@ -963,120 +1009,16 @@
         }
     }
 
-
-    // ---------- Рассчитать все ставки матча вручную ----------
-    async function manualSettleAllMatchBets() {
-      const matchId = Number(document.getElementById('manualMatchId').value);
-      const out = document.getElementById('manualSettleOutput');
-
-      if (!matchId) {
-        showResult('Вкажіть ID матчу', 'error');
-        return;
-      }
-
-      out.textContent = 'Завантаження матчу та рахунку...';
-      out.classList.remove('hidden');
-
-      try {
-        const apiUrl = document.getElementById('apiUrl').value.trim();
-        const adminKey = document.getElementById('adminKey').value.trim();
-
-        // 1) Получаем матч
-        const infoResp = await fetch(`${apiUrl}/api/admin/match-info?id=${matchId}`, {
-          headers: { 'X-Admin-Key': adminKey }
-        });
-
-        if (!infoResp.ok) {
-          out.textContent = `Помилка при отриманні матчу`;
-          return;
-        }
-
-        const infoData = await infoResp.json();
-        if (!infoData.ok) {
-          out.textContent = `Матч не знайдено`;
-          return;
-        }
-
-        const match = infoData.match;
-
-        // 2) Проверяем, есть ли рахунок (в БД матча)
-        if (match.home_score == null || match.away_score == null) {
-          out.textContent = `
-    ❌ ПОМИЛКА: У матчу немає рахунку в системі!
-
-    Матч: ${match.home_team} vs ${match.away_team}
-    Статус: ${match.status}
-    Дата матчу: ${formatDateTime(match.match_date)}
-
-    🔧 ЩО РОБИТИ:
-    1. Переконайся, що матч завершено в реальності
-    2. Натисни "🔄 Оновити матчі (основні турніри)" в Service Actions
-    3. Зачекай 30 секунд на обновление
-    4. Спробуй знову натиснути "📊 Розрахувати ставки матчу"
-
-    Якщо рахунку ВСЕ ЕЩЕ немає - матч ще не завершено в Odds API.
-          `;
-          return;
-        }
-
-        // 3) Есть рахунок — вызываем API для расчета
-        const settleResp = await fetch(`${apiUrl}/api/admin/settle-match-manual`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({
-            matchId,
-            homeScore: match.home_score,
-            awayScore: match.away_score
-          })
-        });
-
-        const settleData = await settleResp.json();
-
-        if (settleResp.ok && settleData.ok) {
-          out.textContent = `
-    ✅ МАТЧ РОЗРАХОВАНО ВРУЧНУ
-
-    Матч: ${settleData.match}
-    Рахунок: ${match.home_score}:${match.away_score}
-
-    📊 РЕЗУЛЬТАТИ:
-      • Всього ставок розраховано: ${settleData.betsProcessed}
-      • Всього балів видано юзерам: ${settleData.totalCredited}
-
-    ${settleData.message}
-          `;
-          showResult(`✅ ${settleData.betsProcessed} ставок розраховано, ${settleData.totalCredited} балів видано`, 'success');
-        } else {
-          out.textContent = `Помилка при розрахунку: ${settleData.error || 'невідома помилка'}`;
-        }
-
-      } catch (error) {
-        out.textContent = `Помилка запиту: ${error.message}`;
-      }
-    }
-
-
-    // ---------- Helper функция для форматирования даты ----------
-    function formatDateTime(str) {
-        if (!str) return '';
-        const d = new Date(str);
-        return d.toLocaleString('uk-UA', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
     // ---------- Установить счет вручную И рассчитать ставки ----------
     async function manualSetAndSettleMatch() {
+      if (!requireAdminKey()) return;
       const matchId = Number(document.getElementById('manualMatchId').value);
-      const homeScore = Number(document.getElementById('manualHomeScore').value);
-      const awayScore = Number(document.getElementById('manualAwayScore').value);
+      const homeRaw = document.getElementById('manualHomeScore').value;
+      const awayRaw = document.getElementById('manualAwayScore').value;
+
+      const homeScore = homeRaw === '' ? NaN : Number(homeRaw);
+      const awayScore = awayRaw === '' ? NaN : Number(awayRaw);
+
       const out = document.getElementById('manualStatusOutput');
 
       if (!matchId || !Number.isFinite(homeScore) || !Number.isFinite(awayScore)) {
@@ -1184,9 +1126,185 @@
             box.textContent = `Помилка: ${error.message}`;
         }
     }
+    async function settleMatchFromDbScore() {
+      const matchId = Number(document.getElementById('manualMatchId').value);
+      const out = document.getElementById('manualStatusOutput');
+
+      if (!matchId) {
+        showResult('Вкажіть ID матчу', 'error');
+        return;
+      }
+
+      out.textContent = 'Завантаження матчу з бази...';
+      out.classList.remove('hidden');
+
+      try {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        // 1) Берем матч из базы (match-info)
+        const infoResp = await fetch(`${apiUrl}/api/admin/match-info?id=${matchId}`, {
+          headers: { 'X-Admin-Key': adminKey }
+        });
+
+        const infoText = await infoResp.text();
+        let infoData;
+        try { infoData = JSON.parse(infoText); } 
+        catch { infoData = { ok: false, error: infoText || 'Non-JSON response' }; }
+
+        if (!infoResp.ok || !infoData.ok || !infoData.match) {
+          out.textContent = `❌ Помилка отримання матчу: ${infoData.error || infoResp.status}`;
+          return;
+        }
+
+        const match = infoData.match;
+
+        // 2) Проверяем, есть ли счет в базе
+        if (match.home_score == null || match.away_score == null) {
+          out.textContent =
+            `⚠️ У матчу ще немає рахунку в базі.\n\n` +
+            `Матч: ${match.home_team} vs ${match.away_team}\n` +
+            `Статус: ${match.status}\n` +
+            `Дата: ${formatDateTime(match.match_date)}\n\n` +
+            `Що робити:\n` +
+            `1) Натисни "🔍 Перевірити статус матчу" (це просто інфо)\n` +
+            `2) Натисни "🔄 Оновити матчі" у Service Actions, щоб воркер підтягнув рахунок\n` +
+            `3) Або введи рахунок вручну і натисни "✅ Установить счет и рассчитать ставки"`;
+          return;
+        }
+
+        // 3) Если счет есть — запускаем settle по этому счету
+        out.textContent = `Рахунок у базі знайдено: ${match.home_score}:${match.away_score}\nРозрахунок ставок...`;
+
+        const settleResp = await fetch(`${apiUrl}/api/admin/settle-match-manual`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({
+            matchId,
+            homeScore: match.home_score,
+            awayScore: match.away_score
+          })
+        });
+
+        const settleText = await settleResp.text();
+        let settleData;
+        try { settleData = JSON.parse(settleText); } 
+        catch { settleData = { ok: false, error: settleText || 'Non-JSON response' }; }
+
+        if (settleResp.ok && settleData.ok) {
+          out.textContent =
+            `✅ РОЗРАХУНОК ВИКОНАНО\n\n` +
+            `Матч: ${settleData.match}\n` +
+            `Рахунок (з бази): ${match.home_score}:${match.away_score}\n\n` +
+            `Ставок розраховано: ${settleData.betsProcessed}\n` +
+            `Балів видано: ${settleData.totalCredited}\n\n` +
+            `${settleData.message || ''}`;
+
+          showResult(`✅ ${settleData.betsProcessed} ставок розраховано`, 'success');
+        } else {
+          out.textContent = `❌ Помилка розрахунку: ${settleData.error || settleResp.status}`;
+          showResult(`Помилка: ${settleData.error || 'unknown'}`, 'error');
+        }
+
+      } catch (e) {
+        out.textContent = `❌ Помилка: ${e.message}`;
+        showResult(`Помилка: ${e.message}`, 'error');
+      }
+    }
+
+    async function forcePullScoreAndMaybeSettle() {
+      const matchId = Number(document.getElementById('manualMatchId').value);
+      const out = document.getElementById('manualStatusOutput');
+
+      if (!matchId) {
+        showResult('Вкажіть ID матчу', 'error');
+        return;
+      }
+
+      out.textContent = 'Форс-перевірка рахунку в Odds API та оновлення в базі...';
+      out.classList.remove('hidden');
+
+      try {
+        const apiUrl = document.getElementById('apiUrl').value.trim();
+        const adminKey = document.getElementById('adminKey').value.trim();
+
+        // 1) форсим подтягивание счета (эндпоинт добавим в воркер)
+        const pullResp = await fetch(`${apiUrl}/api/admin/pull-score`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ matchId })
+        });
+
+        const pullText = await pullResp.text();
+        let pullData;
+        try { pullData = JSON.parse(pullText); } catch { pullData = { ok: false, error: pullText || 'Non-JSON response' }; }
+
+        if (!pullResp.ok || !pullData.ok) {
+          out.textContent = `❌ Не вдалося підтягнути рахунок: ${pullData.error || pullResp.status}`;
+          showResult(`Помилка: ${pullData.error || 'unknown'}`, 'error');
+          return;
+        }
+
+        out.textContent =
+          `✅ Рахунок оновлено в базі\n` +
+          `Матч: ${pullData.match}\n` +
+          `Статус: ${pullData.status}\n` +
+          `Рахунок: ${pullData.homeScore}:${pullData.awayScore}\n\n` +
+          `Розрахунок ставок...`;
+
+        // 2) если матч finished и есть счет — сразу рассчитываем ставки
+        if (pullData.status !== 'finished') {
+          out.textContent += `\n⚠️ Матч ще не finished, ставки не рахую.`;
+          showResult('✅ Счет підтягнуто, але матч не finished', 'success');
+          return;
+        }
+
+        const settleResp = await fetch(`${apiUrl}/api/admin/settle-match-manual`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({
+            matchId,
+            homeScore: pullData.homeScore,
+            awayScore: pullData.awayScore
+          })
+        });
+
+        const settleText = await settleResp.text();
+        let settleData;
+        try { settleData = JSON.parse(settleText); } catch { settleData = { ok: false, error: settleText || 'Non-JSON response' }; }
+
+        if (settleResp.ok && settleData.ok) {
+          out.textContent +=
+            `\n\n✅ СТАВКИ РОЗРАХОВАНО\n` +
+            `Ставок: ${settleData.betsProcessed}\n` +
+            `Балів: ${settleData.totalCredited}\n` +
+            `${settleData.message || ''}`;
+          showResult(`✅ ${settleData.betsProcessed} ставок розраховано`, 'success');
+        } else {
+          out.textContent += `\n\n❌ Помилка розрахунку: ${settleData.error || settleResp.status}`;
+          showResult(`Помилка: ${settleData.error || 'unknown'}`, 'error');
+        }
+
+      } catch (e) {
+        out.textContent = `❌ Помилка: ${e.message}`;
+        showResult(`Помилка: ${e.message}`, 'error');
+      }
+    }
+
+
 </script>
 </body>
 </html>
+
 
 
 
