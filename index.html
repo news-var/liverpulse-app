@@ -959,7 +959,7 @@ function renderLeaderboard() {
     }
 
     return state.leaderboard.map((p, i) => {
-        const isMe = state.user && p.username === state.user.telegram_username;
+        const isMe = state.user && String(p.userId) === String(state.user.id);
 
         const rankBadge =
             i === 0 ? 'rank-1' :
