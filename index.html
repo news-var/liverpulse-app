@@ -12,16 +12,65 @@
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-        } 
+            background-color: #F5EDD8;
+        }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
         .loading { animation: pulse 1.5s ease-in-out infinite; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* ── LFC 2026/27 Jersey Pattern ── */
+        /* Diagonal line-strokes + triangular shards on claret base */
+        .jersey-bg {
+            background-color: #8B1A2E;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cline x1='5' y1='16' x2='24' y2='8' stroke='white' stroke-width='1.8' stroke-linecap='round' opacity='0.24'/%3E%3Cline x1='60' y1='12' x2='80' y2='4' stroke='white' stroke-width='1.4' stroke-linecap='round' opacity='0.20'/%3E%3Cline x1='10' y1='60' x2='28' y2='52' stroke='white' stroke-width='1.6' stroke-linecap='round' opacity='0.22'/%3E%3Cline x1='65' y1='70' x2='82' y2='62' stroke='white' stroke-width='1.3' stroke-linecap='round' opacity='0.19'/%3E%3Cline x1='40' y1='85' x2='58' y2='78' stroke='white' stroke-width='1.5' stroke-linecap='round' opacity='0.21'/%3E%3Cline x1='20' y1='38' x2='36' y2='31' stroke='white' stroke-width='1.2' stroke-linecap='round' opacity='0.17'/%3E%3Cpolygon points='44,20 56,14 53,25' fill='white' opacity='0.17'/%3E%3Cpolygon points='75,42 86,36 84,48' fill='white' opacity='0.14'/%3E%3Cpolygon points='15,80 26,74 24,84' fill='white' opacity='0.15'/%3E%3Cpolygon points='52,55 62,49 60,60' fill='white' opacity='0.13'/%3E%3C/svg%3E");
+            background-size: 100px 100px;
+            background-repeat: repeat;
+        }
+
+        /* Section heading with claret accent bar */
+        .lp-heading {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1C0A10;
+            margin-bottom: 10px;
+            letter-spacing: -0.01em;
+        }
+        .lp-heading::before {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 15px;
+            background: #8B1A2E;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Bet card status stripe */
+        .bet-status-pending  { border-left-color: #C4A030; background-color: #FEFCF0; }
+        .bet-status-won      { border-left-color: #2D8055; background-color: #F0FBF4; }
+        .bet-status-lost     { border-left-color: #8B1A2E; background-color: #FFF0F3; }
+        .bet-status-refund   { border-left-color: #C47840; background-color: #FFF8F0; }
+
+        /* Leaderboard rank badges */
+        .rank-1  { background: #F5D78C; color: #7A5C00; }
+        .rank-2  { background: #DDD5CC; color: #4A4040; }
+        .rank-3  { background: #E8B898; color: #6B3C20; }
+        .rank-n  { background: #F5EDD8; color: #6B5460; }
+
+        /* Nav active pill */
+        .nav-active  { background: #8B1A2E; color: #FFFFFF; border-radius: 12px; }
+        .nav-inactive { color: #7B5C68; }
+
+        button { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-[#F5EDD8]">
 <div id="app"></div>
 
 <script>
@@ -45,8 +94,8 @@ if (tg && CONFIG.USE_TELEGRAM) {
     tg.ready();
     tg.expand();
     tg.enableClosingConfirmation();
-    tg.setHeaderColor('#dc2626');
-    tg.setBackgroundColor('#f9fafb');
+    tg.setHeaderColor('#8B1A2E');
+    tg.setBackgroundColor('#F5EDD8');
 }
 
 // ==========================================
@@ -94,14 +143,13 @@ async function apiRequest(endpoint, options = {}) {
             headers['Authorization'] = `Bearer ${tg.initData}`;
         }
 
-        // ДОБАВЬ це для дебагу
         console.log('🌐 Request:', CONFIG.API_URL + endpoint);
         console.log('📤 Headers:', Object.keys(headers).join(', '));
 
         const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
             ...options,
             headers,
-            credentials: 'omit'  // ДОБАВЬ ЦЕ
+            credentials: 'omit'
         });
 
         if (!response.ok) {
@@ -213,18 +261,14 @@ function formatDate(dateStr) {
     });
 }
 
-// Логотипы команд
 function teamSlug(name) {
     if (!name) return '';
-
-    // Нормализуем специальные символы и приводим к slug
     const normalized = name
-        .normalize('NFD')                 // разбиваем диакритику
-        .replace(/[\u0300-\u036f]/g, '')  // убираем диакритику
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')      // заменяем всё лишнее на _
-        .replace(/^_+|_+$/g, '');         // убираем подчёркивания по краям
-
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
     return normalized;
 }
 
@@ -235,7 +279,6 @@ function getTeamLogo(name) {
     return `${CONFIG.LOGO_BASE}/${slug}.png`;
 }
 
-// Расчёт коэффициентов на 1X / 12 / X2
 function computeDoubleChanceOdds(match) {
     const oh = Number(match.odds_home || 0);
     const od = Number(match.odds_draw || 0);
@@ -253,7 +296,6 @@ function computeDoubleChanceOdds(match) {
     const pAway = pAwayRaw / overround;
 
     const margin = 1.05;
-
     const makeOdd = (p) => p > 0 ? Number((1 / (p * margin)).toFixed(2)) : null;
 
     return {
@@ -264,7 +306,7 @@ function computeDoubleChanceOdds(match) {
 }
 
 // ==========================================
-// РЕФЕРАЛКА (НОВОЕ)
+// РЕФЕРАЛКА
 // ==========================================
 async function loadReferralSummary() {
     const summary = await apiRequest('/api/referral/codes', { method: 'GET' });
@@ -281,7 +323,6 @@ async function loadReferralSummary() {
 }
 
 async function createReferralLink() {
-    // создаём/получаем ссылку одним кликом
     const res = await apiRequest('/api/referral/create', { method: 'POST', body: JSON.stringify({}) });
     if (res && res.ok) {
         state.referral = {
@@ -298,14 +339,10 @@ async function createReferralLink() {
 async function copyToClipboard(text) {
     try {
         if (!text) return false;
-
-        // основной способ
         if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
             return true;
         }
-
-        // fallback
         const ta = document.createElement('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
@@ -326,49 +363,44 @@ async function copyToClipboard(text) {
 function formatInviteRow(r) {
     const claimed = r.claimed_at ? formatDate(r.claimed_at) : '-';
     const status = r.rewarded ? '✅' : '⏳';
-
-    // показываем ник, если есть, иначе запасной вариант с ID
     const name =
         r.invited_username ||
         (r.invited_id != null ? `ID: ${r.invited_id}` : '—');
-
     return { claimed, status, name };
 }
 
 function buildReferralText(inviteLink) {
     return [
-        // 1-й блок: інвайт у додаток
         'Заходь у додаток та отримуй стартові 1000 балів ☝️',
         '',
-        // 2-й блок: посилання на канал
         CHANNEL_INVITE_URL,
         'Підпишись на канал Ліверпульс ☝️',
-        '',  // ← ДОБАВИЛ ЗАПЯТУЮ
+        '',
         BOT_INVITE_URL,
         'Заходь у Бот та отримуй сповіщення про нові матчі ☝️'
     ].join('\n');
 }
 
-const LOGO_URL_LOAD = 'https://news-var.github.io/liverpulse-app/icon/liver_load.png';
+const LOGO_URL_LOAD   = 'https://news-var.github.io/liverpulse-app/icon/liver_load.png';
 const LOGO_URL_HEADER = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
-const LOGO_SIZE_HEADER = "72px"; // подбери под себя: 64px, 72px, 80px и т.д.
-const LOGO_SIZE_LOAD = "120px"; // подбери под себя: 64px, 72px, 80px и т.д.
+const LOGO_SIZE_HEADER = "72px";
+const LOGO_SIZE_LOAD   = "120px";
 
 
 // ==========================================
-// РЕНДЕРИНГ
+// РЕНДЕРИНГ — ШАПКА
 // ==========================================
 function renderHeader() {
     return `
-        <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+        <div class="jersey-bg text-white px-4 py-2.5 sticky top-0 z-10 shadow-lg">
             <div class="relative flex items-center">
-                <!-- ЛЕВАЯ ЧАСТЬ: ник + название -->
+                <!-- Ліво: ніk + назва -->
                 <div class="flex flex-col">
-                    <h1 class="text-xl font-bold">Ліверпульс</h1>
-                    <p class="text-sm opacity-90">@${state.user?.telegram_username || "Гравець"}</p>
+                    <h1 class="text-base font-bold leading-tight tracking-tight">Ліверпульс</h1>
+                    <p class="text-[11px] opacity-75 leading-tight">@${state.user?.telegram_username || "Гравець"}</p>
                 </div>
 
-                <!-- ЦЕНТР: логотип РОВНО по центру шапки -->
+                <!-- Центр: логотип -->
                 <div class="absolute left-1/2 -translate-x-1/2">
                     <img
                         src="${LOGO_URL_HEADER}"
@@ -378,10 +410,10 @@ function renderHeader() {
                     />
                 </div>
 
-                <!-- ПРАВАЯ ЧАСТЬ: баланс -->
+                <!-- Право: баланс -->
                 <div class="ml-auto text-right">
-                    <p class="text-sm opacity-90">Баланс</p>
-                    <p class="text-2xl font-bold">${state.user?.points || 0}</p>
+                    <p class="text-[11px] opacity-75 leading-tight">Баланс</p>
+                    <p class="text-xl font-bold leading-tight">${state.user?.points || 0}</p>
                 </div>
             </div>
         </div>
@@ -389,15 +421,16 @@ function renderHeader() {
 }
 
 
-
-
+// ==========================================
+// РЕНДЕРИНГ — МАТЧІ
+// ==========================================
 function renderMatches() {
     if (state.matches.length === 0) {
         return `
-            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
+            <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-8 text-center text-[#7B5C68]">
                 <p class="text-4xl mb-2">📅</p>
-                <p>Поки немає матчів</p>
-                <p class="text-sm">Матчі з'являться автоматично</p>
+                <p class="font-semibold">Поки немає матчів</p>
+                <p class="text-xs mt-1 opacity-70">Матчі з'являться автоматично</p>
             </div>
         `;
     }
@@ -409,91 +442,75 @@ function renderMatches() {
         const homeLen = (m.home_team || '').length;
         const awayLen = (m.away_team || '').length;
 
-        // Адаптивні розміри шрифтів
         const getNameClass = (len) => {
             if (len >= 26) return 'text-[10px] leading-tight';
             if (len >= 25) return 'text-xs leading-tight';
             if (len >= 13) return 'text-sm leading-tight';
-            return 'text-base leading-tight';
+            return 'text-sm leading-tight';
         };
 
         const homeNameClass = getNameClass(homeLen);
         const awayNameClass = getNameClass(awayLen);
 
-        // ===== ЗАВЕРШЕНИЙ МАТЧ =====
+        // ── ЗАВЕРШЕНИЙ МАТЧ ──
         if (m.status === 'finished') {
             return `
-                <div class="bg-red-50 border border-red-200 rounded-lg shadow-md p-3">
-                    <div class="flex items-center justify-between gap-1.5 mb-2">
-                        
-                        <!-- ЛІВА ЧАСТИНА: лого + назва -->
+                <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl shadow-sm p-3">
+                    <div class="flex items-center justify-between gap-1.5">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <div class="flex-shrink-0">
-                                ${homeLogo 
-                                    ? `<img src="${homeLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                    : `<div class="w-7 h-7"></div>`
-                                }
+                                ${homeLogo
+                                    ? `<img src="${homeLogo}" class="w-6 h-6 object-contain" onerror="this.style.display='none'" alt="" />`
+                                    : `<div class="w-6 h-6"></div>`}
                             </div>
-                            <p class="font-bold ${homeNameClass} text-left break-words hyphens-auto">
+                            <p class="font-semibold ${homeNameClass} text-left break-words hyphens-auto text-[#1C0A10]">
                                 ${m.home_team}
                             </p>
                         </div>
-
-                        <!-- ЦЕНТР: рахунок -->
-                        <div class="flex-shrink-0 px-2 text-xl font-bold text-red-700 whitespace-nowrap">
+                        <div class="flex-shrink-0 px-2 text-lg font-bold text-[#8B1A2E] whitespace-nowrap">
                             ${m.home_score ?? '-'}:${m.away_score ?? '-'}
                         </div>
-
-                        <!-- ПРАВА ЧАСТИНА: назва + лого -->
                         <div class="flex items-center gap-1.5 min-w-0 flex-1 flex-row-reverse">
                             <div class="flex-shrink-0">
-                                ${awayLogo 
-                                    ? `<img src="${awayLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                    : `<div class="w-7 h-7"></div>`
-                                }
+                                ${awayLogo
+                                    ? `<img src="${awayLogo}" class="w-6 h-6 object-contain" onerror="this.style.display='none'" alt="" />`
+                                    : `<div class="w-6 h-6"></div>`}
                             </div>
-                            <p class="font-bold ${awayNameClass} text-right break-words hyphens-auto">
+                            <p class="font-semibold ${awayNameClass} text-right break-words hyphens-auto text-[#1C0A10]">
                                 ${m.away_team}
                             </p>
                         </div>
                     </div>
-
-                    <div class="text-center text-xs text-gray-500 mt-2">
-                        📅 ${formatDate(m.match_date)}
+                    <div class="text-center text-[10px] text-[#7B5C68] mt-1.5">
+                        📅 ${formatDate(m.match_date)}${m.competition ? ` · 🏆 ${m.competition}` : ''}
                     </div>
-                    ${m.competition ? `
-                        <div class="text-center text-[10px] text-gray-400 mt-0.5">
-                            🏆 ${m.competition}
-                        </div>
-                    ` : ''}
-                    <div class="text-center text-xs font-semibold text-red-700 mt-1">
+                    <div class="text-center text-[10px] font-bold text-[#8B1A2E] mt-0.5 uppercase tracking-wide">
                         Матч завершено
                     </div>
                 </div>
             `;
         }
 
+        // ── СТАТУС-БЛОК (locked / live) ──
         let statusBlock = '';
-
         if (m.status === 'locked') {
             statusBlock = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-center text-yellow-700 text-xs mt-2">
+                <div class="bg-[#FBF5E0] border border-[#D8C870] rounded-lg p-2 text-center text-[#7A6020] text-xs mt-2">
                     🔒 Ставки закриті
                 </div>
             `;
         } else if (m.status === 'live') {
             const now = new Date();
             const minutesElapsed = (now - new Date(m.match_date)) / 60000;
-
             if (minutesElapsed > 180) {
                 statusBlock = `
-                    <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-xs mt-2">
+                    <div class="bg-[#F0FBF4] border border-[#B0DCC0] rounded-lg p-2 text-center text-[#2D6040] text-xs mt-2">
                         ⏱ Матч закінчено, почекайте розрахунку...
                     </div>
                 `;
             } else {
                 statusBlock = `
-                    <div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-700 text-xs mt-2">
+                    <div class="bg-[#F0FBF4] border border-[#B0DCC0] rounded-lg p-2 text-center text-[#2D6040] text-xs mt-2">
                         🟢 Матч триває
                     </div>
                 `;
@@ -502,29 +519,29 @@ function renderMatches() {
 
         const canBet = m.status === 'upcoming';
 
-        // ===== DOUBLE CHANCE =====
+        // ── ПОДВІЙНИЙ ШАНС ──
         const dc = canBet ? computeDoubleChanceOdds(m) : null;
         const doubleChanceRow = (canBet && dc) ? `
-            <div class="grid grid-cols-3 gap-2 mt-2">
+            <div class="grid grid-cols-3 gap-1.5 mt-1.5">
                 <button onclick="openBet(${m.id}, '1X2', '1X', ${dc['1X']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
-                    <p class="text-[10px] text-gray-600">1X</p>
-                    <p class="font-bold text-sm text-slate-700">${dc['1X']}</p>
+                    class="flex flex-col items-center rounded-lg p-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] border border-[#D4C5A0] active:scale-95 transition-colors">
+                    <p class="text-[9px] text-[#7B5C68]">1X</p>
+                    <p class="font-bold text-xs text-[#4A3040]">${dc['1X']}</p>
                 </button>
                 <button onclick="openBet(${m.id}, '1X2', '12', ${dc['12']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
-                    <p class="text-[10px] text-gray-600">12</p>
-                    <p class="font-bold text-sm text-slate-700">${dc['12']}</p>
+                    class="flex flex-col items-center rounded-lg p-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] border border-[#D4C5A0] active:scale-95 transition-colors">
+                    <p class="text-[9px] text-[#7B5C68]">12</p>
+                    <p class="font-bold text-xs text-[#4A3040]">${dc['12']}</p>
                 </button>
                 <button onclick="openBet(${m.id}, '1X2', 'X2', ${dc['X2']})"
-                    class="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded p-1.5 active:scale-95">
-                    <p class="text-[10px] text-gray-600">X2</p>
-                    <p class="font-bold text-sm text-slate-700">${dc['X2']}</p>
+                    class="flex flex-col items-center rounded-lg p-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] border border-[#D4C5A0] active:scale-95 transition-colors">
+                    <p class="text-[9px] text-[#7B5C68]">X2</p>
+                    <p class="font-bold text-xs text-[#4A3040]">${dc['X2']}</p>
                 </button>
             </div>
         ` : '';
 
-        // ===== ТОТАЛИ =====
+        // ── ТОТАЛИ ──
         let totalsBlock = '';
         const totalsLines = m.totals_lines || null;
         if (canBet && totalsLines && Object.keys(totalsLines).length > 0) {
@@ -534,54 +551,47 @@ function renderMatches() {
                     if (!Number.isFinite(v)) return null;
                     if (!Number.isInteger(v * 2)) return null;
 
-                    const overRaw = line && line.over != null ? Number(line.over) : null;
+                    const overRaw  = line && line.over  != null ? Number(line.over)  : null;
                     const underRaw = line && line.under != null ? Number(line.under) : null;
 
-                    const overOk = overRaw != null && overRaw >= 1.1;
+                    const overOk  = overRaw  != null && overRaw  >= 1.1;
                     const underOk = underRaw != null && underRaw >= 1.1;
-
                     if (!overOk && !underOk) return null;
 
-                    return {
-                        pt,
-                        v,
-                        over: overOk ? overRaw : null,
-                        under: underOk ? underRaw : null
-                    };
+                    return { pt, v, over: overOk ? overRaw : null, under: underOk ? underRaw : null };
                 })
                 .filter(row => row && (row.over || row.under))
                 .sort((a, b) => a.v - b.v);
 
             if (rows.length > 0) {
                 const isOpen = !!(state.expanded.totals[m.id]);
-
                 totalsBlock = `
-                    <div class="mt-2">
+                    <div class="mt-1.5">
                         <button
-                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-[11px] font-semibold px-2.5 py-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] rounded-lg text-[#4A3040] transition-colors"
                             onclick="toggleTotals(${m.id})"
                         >
                             <span>Тотали</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
+                            <span class="text-[10px]">${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-1.5 space-y-1.5">
+                            <div class="mt-1 space-y-1">
                                 ${rows.map(row => {
                                     const underDisabled = !row.under;
-                                    const overDisabled = !row.over;
+                                    const overDisabled  = !row.over;
                                     return `
-                                        <div class="grid grid-cols-2 gap-1.5 text-xs">
+                                        <div class="grid grid-cols-2 gap-1 text-xs">
                                             <button
                                                 ${underDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     underDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-red-50 hover:bg-red-100 border border-red-200 active:scale-95'
-                                                } rounded-md py-1.5 px-1"
+                                                        ? 'bg-[#F0E8D8] border border-dashed border-[#D8C8A8] opacity-40 cursor-default'
+                                                        : 'bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95'
+                                                } rounded-lg py-1.5 px-1"
                                                 ${underDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'М ${row.pt}', ${row.under})"`}
                                             >
-                                                <span class="text-[10px] text-gray-600">ТМ ${row.pt}</span>
-                                                <span class="font-bold text-sm ${underDisabled ? 'text-gray-400' : 'text-red-700'}">
+                                                <span class="text-[9px] text-[#7B5C68]">ТМ ${row.pt}</span>
+                                                <span class="font-bold text-xs ${underDisabled ? 'text-[#B0A090]' : 'text-[#5A3D2B]'}">
                                                     ${row.under ?? '-'}
                                                 </span>
                                             </button>
@@ -589,13 +599,13 @@ function renderMatches() {
                                                 ${overDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     overDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-green-50 hover:bg-green-100 border border-green-200 active:scale-95'
-                                                } rounded-md py-1.5 px-1"
+                                                        ? 'bg-[#FFF0F3] border border-dashed border-[#F0C8D4] opacity-40 cursor-default'
+                                                        : 'bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95'
+                                                } rounded-lg py-1.5 px-1"
                                                 ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}
                                             >
-                                                <span class="text-[10px] text-gray-600">ТБ ${row.pt}</span>
-                                                <span class="font-bold text-sm ${overDisabled ? 'text-gray-400' : 'text-green-700'}">
+                                                <span class="text-[9px] text-[#7B5C68]">ТБ ${row.pt}</span>
+                                                <span class="font-bold text-xs ${overDisabled ? 'text-[#C0A0A8]' : 'text-[#8B1A2E]'}">
                                                     ${row.over ?? '-'}
                                                 </span>
                                             </button>
@@ -609,7 +619,7 @@ function renderMatches() {
             }
         }
 
-        // ===== ФОРЫ =====
+        // ── ФОРИ ──
         let handicapsBlock = '';
         const spreadLines = m.spread_lines || null;
         if (
@@ -636,7 +646,7 @@ function renderMatches() {
             absPoints = Array.from(new Set(absPoints)).sort((a, b) => a - b);
 
             const hasZero = homeMap['0'] != null || awayMap['0'] != null;
-            const points = hasZero ? [0, ...absPoints.filter(p => p !== 0)] : absPoints;
+            const points  = hasZero ? [0, ...absPoints.filter(p => p !== 0)] : absPoints;
 
             let rows = points.map(p => {
                 const pos = String(p);
@@ -649,36 +659,28 @@ function renderMatches() {
                 if (p === 0) {
                     homeOddsRaw = homeMap['0'] != null ? Number(homeMap['0']) : null;
                     awayOddsRaw = awayMap['0'] != null ? Number(awayMap['0']) : null;
-                    lbl1 = 'Ф1 0';
-                    lbl2 = 'Ф2 0';
-                    sel1 = 'П1 (0)';
-                    sel2 = 'П2 (0)';
+                    lbl1 = 'Ф1 0'; lbl2 = 'Ф2 0';
+                    sel1 = 'П1 (0)'; sel2 = 'П2 (0)';
                 } else {
                     const homeMinus = homeMap[neg] != null ? Number(homeMap[neg]) : null;
                     const awayPlus  = awayMap[pos] != null ? Number(awayMap[pos]) : null;
                     const homePlus  = homeMap[pos] != null ? Number(homeMap[pos]) : null;
                     const awayMinus = awayMap[neg] != null ? Number(awayMap[neg]) : null;
 
-                    const pairAExists = (homeMinus != null) || (awayPlus != null);
-                    const pairBExists = (homePlus != null) || (awayMinus != null);
+                    const pairAExists = (homeMinus != null) || (awayPlus  != null);
+                    const pairBExists = (homePlus  != null) || (awayMinus != null);
 
-                    const scoreA = (homeMinus != null ? 1 : 0) + (awayPlus != null ? 1 : 0);
-                    const scoreB = (homePlus != null ? 1 : 0) + (awayMinus != null ? 1 : 0);
+                    const scoreA = (homeMinus != null ? 1 : 0) + (awayPlus  != null ? 1 : 0);
+                    const scoreB = (homePlus  != null ? 1 : 0) + (awayMinus != null ? 1 : 0);
 
                     if (pairAExists && (!pairBExists || scoreA >= scoreB)) {
-                        homeOddsRaw = homeMinus;
-                        awayOddsRaw = awayPlus;
-                        lbl1 = `Ф1 -${p}`;
-                        lbl2 = `Ф2 +${p}`;
-                        sel1 = `П1 (-${p})`;
-                        sel2 = `П2 (+${p})`;
+                        homeOddsRaw = homeMinus; awayOddsRaw = awayPlus;
+                        lbl1 = `Ф1 -${p}`; lbl2 = `Ф2 +${p}`;
+                        sel1 = `П1 (-${p})`; sel2 = `П2 (+${p})`;
                     } else if (pairBExists) {
-                        homeOddsRaw = homePlus;
-                        awayOddsRaw = awayMinus;
-                        lbl1 = `Ф1 +${p}`;
-                        lbl2 = `Ф2 -${p}`;
-                        sel1 = `П1 (+${p})`;
-                        sel2 = `П2 (-${p})`;
+                        homeOddsRaw = homePlus; awayOddsRaw = awayMinus;
+                        lbl1 = `Ф1 +${p}`; lbl2 = `Ф2 -${p}`;
+                        sel1 = `П1 (+${p})`; sel2 = `П2 (-${p})`;
                     } else {
                         return null;
                     }
@@ -688,47 +690,40 @@ function renderMatches() {
                 const aOk = awayOddsRaw != null && awayOddsRaw >= 1.1;
                 if (!hOk && !aOk) return null;
 
-                return {
-                    point: p,
-                    lbl1,
-                    lbl2,
-                    sel1,
-                    sel2,
+                return { point: p, lbl1, lbl2, sel1, sel2,
                     homeOdds: hOk ? homeOddsRaw : null,
-                    awayOdds: aOk ? awayOddsRaw : null
-                };
+                    awayOdds: aOk ? awayOddsRaw : null };
             }).filter(Boolean);
 
             if (rows.length > 0) {
                 const isOpen = !!(state.expanded.handicaps[m.id]);
-
                 handicapsBlock = `
-                    <div class="mt-2">
+                    <div class="mt-1.5">
                         <button
-                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-[11px] font-semibold px-2.5 py-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] rounded-lg text-[#4A3040] transition-colors"
                             onclick="toggleHandicaps(${m.id})"
                         >
                             <span>Фори</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
+                            <span class="text-[10px]">${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-1.5 space-y-1.5">
+                            <div class="mt-1 space-y-1">
                                 ${rows.map(row => {
                                     const hDisabled = !row.homeOdds;
                                     const aDisabled = !row.awayOdds;
                                     return `
-                                        <div class="grid grid-cols-2 gap-1.5 text-xs">
+                                        <div class="grid grid-cols-2 gap-1 text-xs">
                                             <button
                                                 ${hDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     hDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
+                                                        ? 'bg-[#F0E8D8] border border-dashed border-[#D8C8A8] opacity-40 cursor-default'
+                                                        : 'bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-lg active:scale-95'
                                                 } py-1.5 px-1"
                                                 ${hDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel1}', ${row.homeOdds})"`}
                                             >
-                                                <span class="text-[10px] text-gray-600">${row.lbl1}</span>
-                                                <span class="font-bold text-sm ${hDisabled ? 'text-gray-400' : 'text-indigo-700'}">
+                                                <span class="text-[9px] text-[#7B5C68]">${row.lbl1}</span>
+                                                <span class="font-bold text-xs ${hDisabled ? 'text-[#B0A090]' : 'text-[#4A3040]'}">
                                                     ${row.homeOdds ?? '-'}
                                                 </span>
                                             </button>
@@ -736,13 +731,13 @@ function renderMatches() {
                                                 ${aDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     aDisabled
-                                                        ? 'bg-gray-50 border border-dashed border-gray-200 opacity-40 cursor-default'
-                                                        : 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md active:scale-95'
+                                                        ? 'bg-[#F0E8D8] border border-dashed border-[#D8C8A8] opacity-40 cursor-default'
+                                                        : 'bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-lg active:scale-95'
                                                 } py-1.5 px-1"
                                                 ${aDisabled ? '' : `onclick="openBet(${m.id}, 'Фора', '${row.sel2}', ${row.awayOdds})"`}
                                             >
-                                                <span class="text-[10px] text-gray-600">${row.lbl2}</span>
-                                                <span class="font-bold text-sm ${aDisabled ? 'text-gray-400' : 'text-indigo-700'}">
+                                                <span class="text-[9px] text-[#7B5C68]">${row.lbl2}</span>
+                                                <span class="font-bold text-xs ${aDisabled ? 'text-[#B0A090]' : 'text-[#4A3040]'}">
                                                     ${row.awayOdds ?? '-'}
                                                 </span>
                                             </button>
@@ -756,7 +751,7 @@ function renderMatches() {
             }
         }
 
-        // ===== ТОЧНИЙ РАХУНОК =====
+        // ── ТОЧНИЙ РАХУНОК ──
         let correctScoreBlock = '';
         const csArr = Array.isArray(m.correct_score_lines) ? m.correct_score_lines : [];
         if (canBet && csArr.length > 0) {
@@ -771,22 +766,22 @@ function renderMatches() {
             if (filtered.length > 0) {
                 const isOpen = !!(state.expanded.correctScore[m.id]);
                 correctScoreBlock = `
-                    <div class="mt-2">
+                    <div class="mt-1.5">
                         <button
-                            class="w-full flex justify-between items-center text-xs font-semibold px-2 py-1.5 bg-gray-100 rounded-md"
+                            class="w-full flex justify-between items-center text-[11px] font-semibold px-2.5 py-1.5 bg-[#EDE1C8] hover:bg-[#E4D5BA] rounded-lg text-[#4A3040] transition-colors"
                             onclick="toggleCorrectScore(${m.id})"
                         >
                             <span>Точний рахунок</span>
-                            <span>${isOpen ? '▲' : '▼'}</span>
+                            <span class="text-[10px]">${isOpen ? '▲' : '▼'}</span>
                         </button>
                         ${isOpen ? `
-                            <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
+                            <div class="mt-1 grid grid-cols-3 gap-1 text-[10px]">
                                 ${filtered.map(cs => `
                                     <button
-                                        class="bg-gray-50 hover:bg-gray-100 rounded px-1 py-1 border border-gray-200 active:scale-95"
+                                        class="bg-[#FBF7EF] hover:bg-[#F0E8D8] rounded-lg px-1 py-1.5 border border-[#E4D5BA] text-[#4A3040] active:scale-95 transition-colors"
                                         onclick="openBet(${m.id}, 'Точний рахунок', '${cs.score}', ${cs.odds})"
                                     >
-                                        ${cs.score} (${cs.odds})
+                                        ${cs.score} <span class="text-[#8B1A2E] font-semibold">${cs.odds}</span>
                                     </button>
                                 `).join('')}
                             </div>
@@ -796,71 +791,58 @@ function renderMatches() {
             }
         }
 
-        // ===== КАРТОЧКА =====
+        // ── КАРТКА МАТЧУ (upcoming) ──
         return `
-            <div class="bg-white rounded-lg shadow-md p-3 border border-gray-200">
-                <div class="flex items-center justify-between gap-1.5 mb-2">
-                    
-                    <!-- ЛІВА ЧАСТИНА -->
+            <div class="bg-white border border-[#E4D5BA] rounded-xl shadow-sm p-3">
+                <!-- Команди -->
+                <div class="flex items-center justify-between gap-1.5 mb-1">
                     <div class="flex items-center gap-1.5 min-w-0 flex-1">
                         <div class="flex-shrink-0">
-                            ${homeLogo 
-                                ? `<img src="${homeLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-7 h-7"></div>`
-                            }
+                            ${homeLogo
+                                ? `<img src="${homeLogo}" class="w-6 h-6 object-contain" onerror="this.style.display='none'" alt="" />`
+                                : `<div class="w-6 h-6"></div>`}
                         </div>
-                        <p class="font-bold ${homeNameClass} text-left break-words hyphens-auto">
+                        <p class="font-semibold ${homeNameClass} text-left break-words hyphens-auto text-[#1C0A10]">
                             ${m.home_team}
                         </p>
                     </div>
-
-                    <!-- ЦЕНТР -->
-                    <div class="flex-shrink-0 px-2 text-xl font-bold text-gray-400 whitespace-nowrap">
-                        VS
-                    </div>
-
-                    <!-- ПРАВА ЧАСТИНА -->
+                    <div class="flex-shrink-0 px-2 text-sm font-bold text-[#7B5C68] whitespace-nowrap">VS</div>
                     <div class="flex items-center gap-1.5 min-w-0 flex-1 flex-row-reverse">
                         <div class="flex-shrink-0">
-                            ${awayLogo 
-                                ? `<img src="${awayLogo}" class="w-7 h-7 object-contain" onerror="this.style.display='none'" alt="" />` 
-                                : `<div class="w-7 h-7"></div>`
-                            }
+                            ${awayLogo
+                                ? `<img src="${awayLogo}" class="w-6 h-6 object-contain" onerror="this.style.display='none'" alt="" />`
+                                : `<div class="w-6 h-6"></div>`}
                         </div>
-                        <p class="font-bold ${awayNameClass} text-right break-words hyphens-auto">
+                        <p class="font-semibold ${awayNameClass} text-right break-words hyphens-auto text-[#1C0A10]">
                             ${m.away_team}
                         </p>
                     </div>
                 </div>
 
-                <div class="text-center text-xs text-gray-500">
-                    📅 ${formatDate(m.match_date)}
+                <!-- Дата + змагання -->
+                <div class="text-center text-[10px] text-[#7B5C68] mb-1.5">
+                    📅 ${formatDate(m.match_date)}${m.competition ? ` · 🏆 ${m.competition}` : ''}
                 </div>
-                ${m.competition ? `
-                    <div class="text-center text-[10px] text-gray-400 mt-0.5 mb-1.5">
-                        🏆 ${m.competition}
-                    </div>
-                ` : `<div class="mt-1.5"></div>`}
 
                 ${canBet ? `
-                    <div class="grid grid-cols-3 gap-2">
+                    <!-- 1X2 -->
+                    <div class="grid grid-cols-3 gap-1.5">
                         <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
-                            class="bg-green-50 hover:bg-green-100 border border-green-200 rounded p-1.5 active:scale-95">
-                            <p class="text-[10px] text-gray-600">П1</p>
-                            <p class="font-bold text-sm text-green-700">${m.odds_home}</p>
+                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95 transition-colors">
+                            <p class="text-[9px] text-[#7B5C68]">П1</p>
+                            <p class="font-bold text-xs text-[#8B1A2E]">${m.odds_home}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
-                            class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-1.5 active:scale-95">
-                            <p class="text-[10px] text-gray-600">X</p>
-                            <p class="font-bold text-sm text-blue-700">${m.odds_draw}</p>
+                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95 transition-colors">
+                            <p class="text-[9px] text-[#7B5C68]">X</p>
+                            <p class="font-bold text-xs text-[#4A3040]">${m.odds_draw}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
-                            class="bg-red-50 hover:bg-red-100 border border-red-200 rounded p-1.5 active:scale-95">
-                            <p class="text-[10px] text-gray-600">П2</p>
-                            <p class="font-bold text-sm text-red-700">${m.odds_away}</p>
+                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95 transition-colors">
+                            <p class="text-[9px] text-[#7B5C68]">П2</p>
+                            <p class="font-bold text-xs text-[#8B1A2E]">${m.odds_away}</p>
                         </button>
                     </div>
-
                     ${doubleChanceRow}
                     ${totalsBlock}
                     ${handicapsBlock}
@@ -872,124 +854,156 @@ function renderMatches() {
 }
 
 
-
-
-
-
-
-
+// ==========================================
+// РЕНДЕРИНГ — СТАВКИ
+// ==========================================
 function renderBets() {
     if (state.myBets.length === 0) {
         return `
-            <div class="bg-white rounded-lg p-8 text-center text-gray-500">
-                <p class="text-4xl mb-2">💰</p>
-                <p>У вас немає ставок</p>
-                <p class="text-sm">Зробіть першу!</p>
+            <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-8 text-center text-[#7B5C68]">
+                <p class="text-4xl mb-2">🎯</p>
+                <p class="font-semibold">У вас немає ставок</p>
+                <p class="text-xs mt-1 opacity-70">Зробіть першу!</p>
             </div>
         `;
     }
 
     return state.myBets.map(b => {
-        const colors = {
-            pending: 'border-blue-500 bg-blue-50 text-blue-700',
-            won: 'border-green-500 bg-green-50 text-green-700',
-            lost: 'border-red-500 bg-red-50 text-red-700',
-            refund: 'border-yellow-500 bg-yellow-50 text-yellow-700'
-        };
+        const statusClass = {
+            pending: 'bet-status-pending',
+            won:     'bet-status-won',
+            lost:    'bet-status-lost',
+            refund:  'bet-status-refund'
+        }[b.status] || '';
+
+        const badgeStyle = {
+            pending: 'border border-[#C4A030] bg-[#FBF5E0] text-[#7A6020]',
+            won:     'border border-[#2D8055] bg-[#E4F5EC] text-[#2D6040]',
+            lost:    'border border-[#8B1A2E] bg-[#FFF0F3] text-[#8B1A2E]',
+            refund:  'border border-[#C47840] bg-[#FFF8F0] text-[#7A4820]'
+        }[b.status] || 'border border-[#D8C8A8] bg-[#F5EDD8] text-[#4A3040]';
+
         const labels = {
             pending: 'Очікування',
-            won: 'Виграш ✅',
-            lost: 'Програш ❌',
-            refund: 'Повернення'
+            won:     'Виграш ✅',
+            lost:    'Програш ❌',
+            refund:  'Повернення'
         };
 
         const payout =
-            b.status === 'won'
-                ? b.potential_win
-                : b.status === 'refund'
-                ? b.stake
-                : 0;
+            b.status === 'won'    ? b.potential_win :
+            b.status === 'refund' ? b.stake : 0;
 
-        const colorClass = colors[b.status] || 'border-gray-300 bg-gray-50 text-gray-700';
-        const label = labels[b.status] || 'Статус';
-
-        const m = b.match || null;
-        const title = m
-            ? `${m.home_team} – ${m.away_team}`
-            : `Матч #${b.match_id}`;
-        const comp = m?.competition || null;
+        const label     = labels[b.status] || 'Статус';
+        const m         = b.match || null;
+        const title     = m ? `${m.home_team} – ${m.away_team}` : `Матч #${b.match_id}`;
+        const comp      = m?.competition || null;
         const matchDate = m?.match_date ? formatDate(m.match_date) : null;
-        const score =
-            m && typeof m.home_score === 'number' && typeof m.away_score === 'number'
-                ? `${m.home_score}:${m.away_score}`
-                : null;
+        const score     = m && typeof m.home_score === 'number' && typeof m.away_score === 'number'
+            ? `${m.home_score}:${m.away_score}` : null;
 
         return `
-            <div class="bg-white rounded-lg shadow p-4 border-l-4 ${colorClass}">
-                <div class="flex justify-between items-center mb-2 gap-3">
-                    <div>
-                        <p class="font-bold text-lg">${title}</p>
-                        ${comp ? `<p class="text-xs text-gray-500 mt-1">🏆 ${comp}</p>` : ''}
-                        <p class="text-sm text-gray-600 mt-1">${b.bet_type} - ${b.selection}</p>
+            <div class="bg-white rounded-xl shadow-sm border-l-4 ${statusClass} border border-[#E4D5BA] p-3">
+                <div class="flex justify-between items-start mb-1.5 gap-2">
+                    <div class="min-w-0">
+                        <p class="font-bold text-sm text-[#1C0A10] leading-tight">${title}</p>
+                        ${comp ? `<p class="text-[10px] text-[#7B5C68] mt-0.5">🏆 ${comp}</p>` : ''}
+                        <p class="text-xs text-[#7B5C68] mt-0.5">${b.bet_type} · ${b.selection}</p>
                     </div>
-                    <span class="inline-flex items-center justify-center h-9 px-3 ${colorClass} rounded text-xs font-bold whitespace-nowrap">
+                    <span class="inline-flex items-center justify-center flex-shrink-0 h-7 px-2 ${badgeStyle} rounded-lg text-[10px] font-bold whitespace-nowrap">
                         ${label}
                     </span>
                 </div>
 
                 ${score ? `
-                    <p class="text-sm text-gray-600 mb-1">
-                        Рахунок: <span class="font-bold">${score}</span>
+                    <p class="text-xs text-[#7B5C68] mb-1">
+                        Рахунок: <span class="font-bold text-[#1C0A10]">${score}</span>
                     </p>
                 ` : ''}
 
-                <div class="grid grid-cols-3 gap-2 text-sm mt-1">
-                    <div>
-                        <p class="text-gray-500">Ставка</p>
-                        <p class="font-bold">${b.stake}</p>
+                <div class="grid grid-cols-3 gap-1 text-xs mt-1 bg-[#FBF7EF] rounded-lg p-2">
+                    <div class="text-center">
+                        <p class="text-[9px] text-[#7B5C68] uppercase tracking-wide">Ставка</p>
+                        <p class="font-bold text-sm text-[#1C0A10]">${b.stake}</p>
                     </div>
-                    <div>
-                        <p class="text-gray-500">Коеф.</p>
-                        <p class="font-bold">${b.odds}</p>
+                    <div class="text-center border-x border-[#E4D5BA]">
+                        <p class="text-[9px] text-[#7B5C68] uppercase tracking-wide">Коеф.</p>
+                        <p class="font-bold text-sm text-[#4A3040]">${b.odds}</p>
                     </div>
-                    <div>
-                        <p class="text-gray-500">Виграш</p>
-                        <p class="font-bold text-green-600">${payout}</p>
+                    <div class="text-center">
+                        <p class="text-[9px] text-[#7B5C68] uppercase tracking-wide">Виграш</p>
+                        <p class="font-bold text-sm text-[#2D6040]">${payout || '—'}</p>
                     </div>
                 </div>
 
-                <p class="text-xs text-gray-400 mt-2">
-                    Ставка: ${formatDate(b.created_at)}
-                    ${matchDate ? ` • Матч: ${matchDate}` : ''}
+                <p class="text-[10px] text-[#7B5C68] mt-1.5">
+                    ${formatDate(b.created_at)}${matchDate ? ` · Матч: ${matchDate}` : ''}
                 </p>
             </div>
         `;
     }).join('');
 }
 
+
+// ==========================================
+// РЕНДЕРИНГ — РЕЙТИНГ
+// ==========================================
 function renderLeaderboard() {
+    if (state.leaderboard.length === 0) {
+        return `
+            <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-8 text-center text-[#7B5C68]">
+                <p class="text-4xl mb-2">🏆</p>
+                <p class="font-semibold">Рейтинг завантажується</p>
+            </div>
+        `;
+    }
+
     return state.leaderboard.map((p, i) => {
         const isMe = state.user && p.username === state.user.telegram_username;
-        const colors = ['bg-yellow-400 text-yellow-900', 'bg-gray-300 text-gray-700', 'bg-orange-400 text-orange-900', 'bg-gray-100 text-gray-600'];
+
+        const rankBadge =
+            i === 0 ? 'rank-1' :
+            i === 1 ? 'rank-2' :
+            i === 2 ? 'rank-3' : 'rank-n';
+
+        const rankIcon =
+            i === 0 ? '🥇' :
+            i === 1 ? '🥈' :
+            i === 2 ? '🥉' : null;
 
         return `
-            <div class="bg-white rounded-lg shadow p-4 flex items-center gap-4 ${isMe ? 'border-2 border-red-500' : ''}">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[Math.min(i, 3)]}">
-                    ${p.rank}
+            <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 ${
+                isMe
+                    ? 'bg-[#FFF0F3] border-2 border-[#8B1A2E] shadow-sm'
+                    : 'bg-white border border-[#E4D5BA]'
+            }">
+                <!-- Місце -->
+                <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${rankBadge}">
+                    ${rankIcon ?? p.rank}
                 </div>
-                <div class="flex-1">
-                    <p class="font-bold">${p.username}</p>
-                    <p class="text-sm text-gray-600">Успішність: ${p.winRate}%</p>
+
+                <!-- Нік + відсоток -->
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm text-[#1C0A10] truncate">
+                        ${p.username}${isMe ? ' <span class="text-[10px] text-[#8B1A2E] font-bold">← ти</span>' : ''}
+                    </p>
+                    <p class="text-[10px] text-[#7B5C68]">Успішність ${p.winRate}%</p>
                 </div>
-                <div class="text-right">
-                    <p class="font-bold text-xl text-red-600">${p.points}</p>
-                    <p class="text-xs text-gray-500">балів</p>
+
+                <!-- Бали -->
+                <div class="text-right flex-shrink-0">
+                    <p class="font-bold text-lg text-[#8B1A2E] leading-tight">${p.points}</p>
+                    <p class="text-[9px] text-[#7B5C68] uppercase tracking-wide">балів</p>
                 </div>
             </div>
         `;
     }).join('');
 }
 
+
+// ==========================================
+// РЕНДЕРИНГ — МОДАЛ СТАВКИ
+// ==========================================
 function renderBetModal() {
     if (!state.selectedMatch) return '';
 
@@ -997,43 +1011,53 @@ function renderBetModal() {
     if (!match) return '';
 
     return `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeModal(event)">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full" onclick="event.stopPropagation()">
-                <h3 class="text-xl font-bold mb-4">Зробити ставку</h3>
+        <div class="fixed inset-0 bg-black bg-opacity-60 flex items-end justify-center p-0 z-50 sm:items-center sm:p-4" onclick="closeModal(event)">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md shadow-2xl" onclick="event.stopPropagation()">
 
-                <div class="bg-gray-50 rounded p-3 mb-4">
-                    <p class="text-sm text-gray-600">Матч</p>
-                    <p class="font-bold">${match.home_team} vs ${match.away_team}</p>
-                    <p class="text-sm text-gray-600 mt-2">Вибір</p>
-                    <p class="font-bold">${state.betSlip.selection}</p>
-                    <p class="text-sm text-gray-600 mt-2">Коефіцієнт</p>
-                    <p class="font-bold text-lg text-green-600">${state.betSlip.odds}</p>
+                <!-- Інфо матчу з jersey pattern -->
+                <div class="jersey-bg rounded-xl p-3 mb-4 text-white">
+                    <p class="text-[10px] opacity-70 uppercase tracking-widest mb-0.5">Матч</p>
+                    <p class="font-bold text-sm leading-tight">${match.home_team} vs ${match.away_team}</p>
+                    <div class="flex items-center justify-between mt-2">
+                        <div>
+                            <p class="text-[10px] opacity-70">Вибір</p>
+                            <p class="font-semibold text-sm">${state.betSlip.selection}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] opacity-70">Коефіцієнт</p>
+                            <p class="font-bold text-xl leading-tight">${state.betSlip.odds}</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Сума ставки (бали)</label>
+                <!-- Сума ставки -->
+                <div class="mb-3">
+                    <label class="block text-xs font-semibold text-[#4A3040] mb-1.5 uppercase tracking-wide">Сума ставки (бали)</label>
                     <input id="stake" type="number" min="10" max="${state.user.points}" value="${state.betSlip.stake}"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 text-lg"
+                        class="w-full border border-[#D8C8A8] bg-[#FBF7EF] rounded-xl px-4 py-2.5 text-lg font-bold text-[#1C0A10] focus:outline-none focus:border-[#8B1A2E]"
                         oninput="updateStake(this.value)">
-                    <div class="flex gap-2 mt-2">
+                    <div class="grid grid-cols-4 gap-1.5 mt-2">
                         ${[50, 100, 250, 500].map(a => `
-                            <button onclick="setStake(${a})" class="flex-1 bg-gray-100 hover:bg-gray-200 rounded py-1 text-sm active:scale-95">${a}</button>
+                            <button onclick="setStake(${a})"
+                                class="bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-lg py-1.5 text-xs font-semibold text-[#4A3040] active:scale-95 transition-colors">${a}</button>
                         `).join('')}
                     </div>
                 </div>
 
-                <div class="bg-blue-50 rounded p-3 mb-4">
-                    <p class="text-sm text-gray-600">Можливий виграш</p>
-                    <p class="text-2xl font-bold text-blue-600" id="win">${(state.betSlip.stake * state.betSlip.odds).toFixed(0)}</p>
+                <!-- Можливий виграш -->
+                <div class="bg-[#F5EDD8] border border-[#D8C8A8] rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+                    <p class="text-xs font-semibold text-[#7B5C68] uppercase tracking-wide">Можливий виграш</p>
+                    <p class="text-2xl font-bold text-[#8B1A2E]" id="win">${(state.betSlip.stake * state.betSlip.odds).toFixed(0)}</p>
                 </div>
 
-                <div class="flex gap-3">
+                <!-- Кнопки -->
+                <div class="flex gap-2.5">
                     <button onclick="state.selectedMatch = null; render()"
-                        class="flex-1 bg-gray-200 hover:bg-gray-300 font-semibold py-3 rounded-lg active:scale-95">
+                        class="flex-1 bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] text-[#4A3040] font-semibold py-3 rounded-xl active:scale-95 transition-colors">
                         Скасувати
                     </button>
                     <button onclick="placeBet()"
-                        class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg active:scale-95">
+                        class="flex-1 jersey-bg text-white font-semibold py-3 rounded-xl active:scale-95 shadow-md">
                         Поставити
                     </button>
                 </div>
@@ -1042,24 +1066,28 @@ function renderBetModal() {
     `;
 }
 
+
+// ==========================================
+// РЕНДЕРИНГ — НАВІГАЦІЯ
+// ==========================================
 function renderNav() {
     const pages = [
-        { id: 'matches', icon: '📊', label: 'Матчі' },
-        { id: 'bets', icon: '💰', label: 'Ставки' },
+        { id: 'matches',     icon: '📊', label: 'Матчі' },
+        { id: 'bets',        icon: '💰', label: 'Ставки' },
         { id: 'leaderboard', icon: '🏆', label: 'Рейтинг' },
-        { id: 'referral', icon: '👥', label: 'Реферали' }
+        { id: 'referral',    icon: '👥', label: 'Реферали' }
     ];
 
     return `
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 safe-bottom">
-            <div class="grid grid-cols-4 gap-2">
+        <div class="fixed bottom-0 left-0 right-0 bg-[#FBF7EF] border-t border-[#E4D5BA] px-2 py-1.5 safe-bottom z-10">
+            <div class="grid grid-cols-4 gap-1">
                 ${pages.map(p => `
                     <button onclick="changePage('${p.id}')"
-                        class="flex flex-col items-center py-2 rounded-lg active:scale-95 ${
-                            state.currentPage === p.id ? 'bg-red-50 text-red-600' : 'text-gray-600'
+                        class="flex flex-col items-center py-1.5 px-1 rounded-xl active:scale-95 transition-colors ${
+                            state.currentPage === p.id ? 'nav-active' : 'nav-inactive'
                         }">
-                        <span class="text-2xl mb-1">${p.icon}</span>
-                        <span class="text-xs font-medium">${p.label}</span>
+                        <span class="text-xl mb-0.5">${p.icon}</span>
+                        <span class="text-[10px] font-semibold">${p.label}</span>
                     </button>
                 `).join('')}
             </div>
@@ -1069,27 +1097,26 @@ function renderNav() {
 
 
 // ==========================================
-// РЕФЕРАЛКА UI (НОВОЕ)
+// РЕНДЕРИНГ — РЕФЕРАЛИ
 // ==========================================
 function renderReferralPage() {
-    const r = state.referral || {};
-    const link = r.link || '';
-    const used = Number(r.used || 0);
-    const max = Number(r.max || 10);
+    const r         = state.referral || {};
+    const link      = r.link || '';
+    const used      = Number(r.used || 0);
+    const max       = Number(r.max || 10);
     const remaining = Math.max(0, Number(r.remaining ?? (max - used)));
 
     const rows = Array.isArray(r.rows) ? r.rows : [];
     const listHtml = rows.length ? `
-        <div class="mt-3 space-y-2">
+        <div class="mt-2 space-y-1.5">
             ${rows.map(x => {
                 const row = formatInviteRow(x);
                 return `
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                    <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-2.5 flex items-center justify-between">
                         <div class="min-w-0">
-                            <div class="text-xs text-gray-500">Нікнейм друга</div>
-                            <div class="font-semibold text-sm truncate">${row.name}</div>
-                            <div class="text-xs text-gray-500 mt-1">Дата</div>
-                            <div class="text-xs text-gray-700">${row.claimed}</div>
+                            <div class="text-[9px] text-[#7B5C68] uppercase tracking-wide">Нікнейм друга</div>
+                            <div class="font-semibold text-sm text-[#1C0A10] truncate">${row.name}</div>
+                            <div class="text-[10px] text-[#7B5C68] mt-0.5">${row.claimed}</div>
                         </div>
                         <div class="text-2xl ml-3">${row.status}</div>
                     </div>
@@ -1097,111 +1124,116 @@ function renderReferralPage() {
             }).join('')}
         </div>
     ` : `
-        <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-600">
-            Тут зʼявляться запрошені друзі
+        <div class="mt-2 bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-4 text-center text-[#7B5C68] text-sm">
+            Тут з'являться запрошені друзі
         </div>
     `;
 
     return `
         <div>
-            <h2 class="text-xl font-bold mb-2">👥 Реферали</h2>
-            <p class="text-sm text-gray-600 mb-4">
-                Створи інвайт посилання та запроси до <span class="font-semibold">10</span> друзів і отримай
-                <span class="font-semibold">50</span> балів за кожного, хто виконає дві умови:
-                <br>1. Зайде у цей <span class="font-semibold">Додаток</span> по інвайт-посиланню нижче;
-                <br>2. Підпишеться на канал <span class="font-semibold">Ліверпульс</span> по посиланню нижче.
-                <br>(Натисни Поділитися і обери діалог зі своїм другом).
+            <div class="lp-heading">👥 Реферали</div>
+            <p class="text-xs text-[#7B5C68] mb-3 leading-relaxed">
+                Запроси до <span class="font-semibold text-[#1C0A10]">10</span> друзів і отримай
+                <span class="font-semibold text-[#8B1A2E]">50 балів</span> за кожного, хто:
+                <br>1. Зайде в <span class="font-semibold text-[#1C0A10]">Додаток</span> по інвайт-посиланню;
+                <br>2. Підпишеться на канал <span class="font-semibold text-[#1C0A10]">Ліверпульс</span> по посиланню.
+                <br><span class="text-[#7B5C68]">(Натисни Поділитися → обери діалог з другом)</span>
             </p>
 
-            <div class="grid grid-cols-3 gap-2 mb-4">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                    <div class="text-xs text-gray-600">Ліміт</div>
-                    <div class="text-xl font-bold text-red-700">${max}</div>
+            <!-- Лічильники -->
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <div class="jersey-bg rounded-xl p-2.5 text-center text-white shadow-sm">
+                    <div class="text-[10px] opacity-70 uppercase tracking-wide">Ліміт</div>
+                    <div class="text-xl font-bold">${max}</div>
                 </div>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                    <div class="text-xs text-gray-600">Використано</div>
-                    <div class="text-xl font-bold text-blue-700">${used}</div>
+                <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-2.5 text-center">
+                    <div class="text-[10px] text-[#7B5C68] uppercase tracking-wide">Використано</div>
+                    <div class="text-xl font-bold text-[#4A3040]">${used}</div>
                 </div>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                    <div class="text-xs text-gray-600">Залишилось</div>
-                    <div class="text-xl font-bold text-green-700">${remaining}</div>
+                <div class="bg-[#FBF7EF] border-2 border-[#8B1A2E] rounded-xl p-2.5 text-center">
+                    <div class="text-[10px] text-[#7B5C68] uppercase tracking-wide">Залишилось</div>
+                    <div class="text-xl font-bold text-[#8B1A2E]">${remaining}</div>
                 </div>
             </div>
 
-            <div class="mb-4">
-                <div class="text-sm font-semibold mb-2">Інвайт-посилання</div>
+            <!-- Посилання -->
+            <div class="mb-3">
+                <div class="text-xs font-semibold text-[#4A3040] mb-1.5 uppercase tracking-wide">Інвайт-посилання</div>
 
                 ${state.referralLoading ? `
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-600">
+                    <div class="bg-[#FBF7EF] border border-[#E4D5BA] rounded-xl p-4 text-center text-[#7B5C68] text-sm">
                         Завантаження...
                     </div>
-               ` : `
+                ` : `
                     <!-- Інвайт у додаток -->
-                    <div class="flex gap-2">
+                    <div class="flex gap-1.5 mb-1.5">
                         <input
                             id="refLinkInput"
                             value="${link}"
                             readonly
-                            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                            class="flex-1 border border-[#D8C8A8] rounded-xl px-3 py-2 text-xs bg-[#FBF7EF] text-[#4A3040] min-w-0"
                             placeholder="Натисни Створити, щоб отримати посилання"
                         />
                         <button
                             onclick="copyReferralLink()"
-                            class="bg-gray-200 hover:bg-gray-300 rounded-lg px-4 py-2 font-semibold active:scale-95"
-                            ${link ? '' : 'disabled style="opacity:.5; cursor:default;"'}
+                            class="bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-xl px-3 py-2 text-xs font-semibold text-[#4A3040] active:scale-95 whitespace-nowrap transition-colors"
+                            ${link ? '' : 'disabled style="opacity:.4; cursor:default;"'}
                         >
                             Копіювати інвайт
                         </button>
                     </div>
 
                     <!-- Посилання на канал -->
-                    <div class="flex gap-2 mt-2">
+                    <div class="flex gap-1.5 mb-1.5">
                         <input
                             value="${CHANNEL_INVITE_URL}"
                             readonly
-                            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                            class="flex-1 border border-[#D8C8A8] rounded-xl px-3 py-2 text-xs bg-[#FBF7EF] text-[#4A3040] min-w-0"
                         />
                         <button
                             onclick="copyChannelLink()"
-                            class="bg-gray-200 hover:bg-gray-300 rounded-lg px-4 py-2 font-semibold active:scale-95"
+                            class="bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-xl px-3 py-2 text-xs font-semibold text-[#4A3040] active:scale-95 whitespace-nowrap transition-colors"
                         >
                             Копіювати канал
                         </button>
                     </div>
 
-                    <div class="flex gap-2 mt-2">
+                    <!-- Дії -->
+                    <div class="flex gap-1.5">
                         ${!link
-                            ? '<button onclick="handleCreateReferral()" class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg py-2 font-semibold active:scale-95">Створити посилання</button>'
+                            ? `<button onclick="handleCreateReferral()" class="flex-1 jersey-bg text-white rounded-xl py-2.5 text-xs font-semibold active:scale-95 shadow-sm">Створити посилання</button>`
                             : ''
                         }
                         <button
                             onclick="shareReferralLink()"
-                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-semibold active:scale-95"
-                            ${link ? '' : 'disabled style="opacity:.5; cursor:default;"'}
+                            class="flex-1 jersey-bg text-white rounded-xl py-2.5 text-xs font-semibold active:scale-95 shadow-sm"
+                            ${link ? '' : 'disabled style="opacity:.4; cursor:default;"'}
                         >
                             Поділитися
                         </button>
                         <button
                             onclick="refreshReferral()"
-                            class="bg-gray-200 hover:bg-gray-300 rounded-lg px-4 py-2 font-semibold active:scale-95"
+                            class="bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] rounded-xl px-3 py-2.5 text-xs font-semibold text-[#4A3040] active:scale-95 transition-colors"
                         >
                             Оновити
                         </button>
                     </div>
                 `}
             </div>
-                
-            <div class="mt-3 mb-4">
+
+            <!-- Підтримка -->
+            <div class="mb-3">
                 <button
                     onclick="openSupportChat()"
-                    class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-semibold active:scale-95"
+                    class="w-full jersey-bg text-white rounded-xl py-2.5 text-xs font-semibold active:scale-95 shadow-sm"
                 >
                     Написати в підтримку 🆘
                 </button>
             </div>
 
+            <!-- Список запрошених -->
             <div>
-                <div class="text-sm font-semibold">Запрошені</div>
+                <div class="text-xs font-semibold text-[#4A3040] uppercase tracking-wide">Запрошені</div>
                 ${listHtml}
             </div>
         </div>
@@ -1209,58 +1241,57 @@ function renderReferralPage() {
 }
 
 
+// ==========================================
+// РЕНДЕРИНГ — ГОЛОВНИЙ
+// ==========================================
 function render() {
     const app = document.getElementById('app');
 
     if (state.loading) {
         app.innerHTML = `
-            <div class="flex items-center justify-center min-h-screen">
+            <div class="flex items-center justify-center min-h-screen bg-[#F5EDD8]">
                 <div class="text-center">
                     <img
                         src="${LOGO_URL_LOAD}"
                         alt="Ліверпульс"
-                        class="block mx-auto"
+                        class="block mx-auto loading"
                         style="width:${LOGO_SIZE_LOAD};height:${LOGO_SIZE_LOAD};object-fit:contain;"
                     />
-                    <p class="text-gray-600 mt-2">Завантаження...</p>
+                    <p class="text-[#8B1A2E] font-semibold mt-3 text-sm">Завантаження...</p>
                 </div>
             </div>
         `;
         return;
     }
 
-
-
     let content = '';
 
     if (state.currentPage === 'matches') {
         const hasUpcoming = state.matches.some(m => m.status === 'upcoming');
-        const headingText = hasUpcoming
-            ? '⏰ Майбутні матчі'
-            : '⏰ Наступний матч скоро з\'явиться';
+        const headingText = hasUpcoming ? '⏰ Майбутні матчі' : '⏰ Наступний матч скоро з\'явиться';
 
         content = `
-            <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 text-white mb-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm opacity-90">Ваш баланс</p>
-                        <p class="text-3xl font-bold">${state.user.points}</p>
-                    </div>
-                    <div class="text-5xl">🏆</div>
+            <!-- Баланс-картка -->
+            <div class="jersey-bg rounded-xl p-3 text-white mb-3 flex items-center justify-between shadow-md">
+                <div>
+                    <p class="text-[10px] opacity-70 uppercase tracking-widest">Ваш баланс</p>
+                    <p class="text-2xl font-bold leading-tight">${state.user.points} <span class="text-sm font-normal opacity-70">балів</span></p>
                 </div>
+                <div class="text-3xl opacity-90">⚽</div>
             </div>
-            <h2 class="text-xl font-bold mb-4">${headingText}</h2>
-            <div class="space-y-4">${renderMatches()}</div>
+
+            <div class="lp-heading">${headingText}</div>
+            <div class="space-y-3">${renderMatches()}</div>
         `;
     } else if (state.currentPage === 'bets') {
         content = `
-            <h2 class="text-xl font-bold mb-4">📋 Мої ставки</h2>
-            <div class="space-y-4">${renderBets()}</div>
+            <div class="lp-heading">💰 Мої ставки</div>
+            <div class="space-y-2.5">${renderBets()}</div>
         `;
     } else if (state.currentPage === 'leaderboard') {
         content = `
-            <h2 class="text-xl font-bold mb-4">👑 Рейтинг</h2>
-            <div class="space-y-4">${renderLeaderboard()}</div>
+            <div class="lp-heading">🏆 Рейтинг</div>
+            <div class="space-y-2">${renderLeaderboard()}</div>
         `;
     } else if (state.currentPage === 'referral') {
         content = renderReferralPage();
@@ -1268,11 +1299,12 @@ function render() {
 
     app.innerHTML = `
         ${renderHeader()}
-        <div class="p-4 pb-24">${content}</div>
+        <div class="p-3 pb-24">${content}</div>
         ${renderNav()}
         ${renderBetModal()}
     `;
 }
+
 
 // ==========================================
 // ГЛОБАЛЬНІ ФУНКЦІЇ
@@ -1325,7 +1357,6 @@ window.setStake = (amt) => {
     if (tg) tg.HapticFeedback.impactOccurred('light');
 };
 
-// Тогглы для випадаючих списків
 window.toggleTotals = (matchId) => {
     state.expanded.totals[matchId] = !state.expanded.totals[matchId];
     render();
@@ -1342,20 +1373,16 @@ window.toggleCorrectScore = (matchId) => {
 };
 
 // ==========================================
-// РЕФЕРАЛКА: ГЛОБАЛЬНЫЕ ХЭНДЛЕРЫ (НОВОЕ)
+// РЕФЕРАЛКА: ГЛОБАЛЬНІ ХЕНДЛЕРИ
 // ==========================================
 window.refreshReferral = async () => {
-    // не даємо спамити по кнопці, пока уже грузится
     if (state.referralLoading) return;
 
     state.referralLoading = true;
     render();
 
     try {
-        // 1) дергаем бэк, чтобы он пересчитал награды по всем твоим инвайтам
         await apiRequest('/api/referral/resync', { method: 'POST', body: JSON.stringify({}) });
-
-        // 2) подтягиваем свежую сводку (как и раньше)
         await loadReferralSummary();
     } catch (e) {
         console.error('referral resync error', e);
@@ -1367,7 +1394,6 @@ window.refreshReferral = async () => {
 
     if (tg) tg.HapticFeedback.impactOccurred('light');
 };
-
 
 window.handleCreateReferral = async () => {
     state.referralLoading = true;
@@ -1409,30 +1435,23 @@ window.copyChannelLink = async () => {
     }
 };
 
-
-// НОВОЕ: шэринг ссылки в Telegram
 window.shareReferralLink = () => {
     const link = state.referral?.link;
     if (!link) return;
 
-    // наш текст с переносами строк и двумя ссылками
     const text = buildReferralText(link);
 
     if (tg && typeof tg.openTelegramLink === 'function') {
-        // ВАЖНО: url ДОЛЖЕН быть не пустой, иначе Telegram не откроет окно выбора чата
         const shareUrl =
             'https://t.me/share/url?' +
             'url=' + encodeURIComponent(link) +
             '&text=' + encodeURIComponent(text);
-
         tg.openTelegramLink(shareUrl);
     } else {
-        // fallback для открытия вне мини-аппа
         const shareUrl =
             'https://t.me/share/url?' +
             'url=' + encodeURIComponent(link) +
             '&text=' + encodeURIComponent(text);
-
         window.open(shareUrl, '_blank');
     }
 
@@ -1442,8 +1461,7 @@ window.shareReferralLink = () => {
 };
 
 window.openSupportChat = () => {
-    // ЗАМЕНИ ЭТОТ URL на реальный аккаунт саппорта
-    const url = 'https://t.me/liverpulser';
+    const url = 'https://t.me/liverpulsup';
 
     if (tg && typeof tg.openTelegramLink === 'function') {
         tg.openTelegramLink(url);
@@ -1457,11 +1475,9 @@ window.openSupportChat = () => {
 };
 
 
-
 // ==========================================
 // ІНІЦІАЛІЗАЦІЯ
 // ==========================================
-  
 async function init() {
     try {
         state.loading = true;
@@ -1477,12 +1493,12 @@ async function init() {
         console.error('Init error:', error);
         state.loading = false;
         document.getElementById('app').innerHTML = `
-            <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="flex items-center justify-center min-h-screen p-4 bg-[#F5EDD8]">
                 <div class="text-center">
                     <p class="text-6xl mb-4">❌</p>
-                    <p class="text-xl font-bold mb-2">Помилка</p>
-                    <p class="text-gray-600 mb-4">${error.message}</p>
-                    <button onclick="location.reload()" class="bg-red-600 text-white px-6 py-2 rounded-lg">
+                    <p class="text-xl font-bold mb-2 text-[#1C0A10]">Помилка</p>
+                    <p class="text-[#7B5C68] mb-4 text-sm">${error.message}</p>
+                    <button onclick="location.reload()" class="jersey-bg text-white px-6 py-2.5 rounded-xl text-sm font-semibold">
                         Спробувати знову
                     </button>
                 </div>
