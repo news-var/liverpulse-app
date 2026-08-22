@@ -182,6 +182,8 @@
                         class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">
                     ⏰ Надіслати нагадування (upcoming)
                 </button>
+                <!-- Пояснення: надсилає push всім юзерам (або конкретному з поля User ID) про всі матчі зі статусом "upcoming".
+                     Тобто це повторний push про майбутні матчі — корисно якщо хтось не отримав автоматичне повідомлення. -->
 
                 <button onclick="resetRating()"
                         class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-700">
@@ -198,9 +200,16 @@
 
             <div class="space-y-2">
                 <p class="text-xs text-gray-600">
-                    Якщо статус матчу або ставки не оновилися автоматично - використовуй ці функції.
-                    Матчі автоматично перевіряються кожні 6 хвилин.
+                    Рахунок вводиться вручну. Статус матчів перевіряється кожні 6 хв (авторозрахунок — щодня о 00:00).
                 </p>
+
+                <!-- Кнопка для перегляду ID матчів -->
+                <button onclick="loadMatchList()"
+                        class="w-full bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800">
+                    📋 Всі матчі (ID + дата + команди)
+                </button>
+                <div id="matchListOutput"
+                     class="hidden text-[10px] sm:text-xs bg-slate-900 text-green-300 border border-slate-700 rounded-lg p-3 whitespace-pre-wrap max-h-[250px] overflow-auto font-mono"></div>
 
                 <div class="flex flex-col sm:flex-row gap-2">
                     <input 
@@ -227,6 +236,13 @@
                         class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700"
                     >
                         📊 Рассчитать ставки по счету из базы
+                    </button>
+
+                    <button 
+                        onclick="deleteMatch()"
+                        class="w-full bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-900"
+                    >
+                        🗑️ Видалити матч (за ID)
                     </button>
 
                 </div>
@@ -275,6 +291,35 @@
                 </div>
             </div>
         </section>
+
+        <hr class="my-2">
+
+        <!-- 🏆 ТОП ПРОГНОЗИСТІВ МІСЯЦЯ -->
+        <section class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold">🏆 Топ-5 прогнозистів за профітом</h2>
+            <p class="text-xs text-gray-500">
+                Рейтинг за чистим профітом (виграш мінус ставки). Повернення (refund) не враховуються.
+                Показується найкраща ставка за профітом.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                <select id="forecasterPeriod" class="border px-3 py-2 rounded-lg text-sm w-full sm:w-auto">
+                    <option value="month">Поточний місяць</option>
+                    <option value="week">Останній тиждень</option>
+                    <option value="all">Весь час</option>
+                </select>
+                <button onclick="loadTopForecasters()"
+                        class="w-full sm:w-auto bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700">
+                    🏆 Показати топ-5
+                </button>
+            </div>
+
+            <div id="forecasterBox" class="text-xs bg-gray-50 border rounded-lg p-3 min-h-[48px]">
+                Натисніть «Показати топ-5»
+            </div>
+        </section>
+
+        <hr class="my-2">
 
         <!-- ЕКСПОРТ СТАВОК + СТАТИСТИКА -->
         <section class="space-y-3">
@@ -1126,6 +1171,142 @@
             box.textContent = `Помилка: ${error.message}`;
         }
     }
+    // ── Список матчів (ID + дата + команди) ──────────────────────────────
+    async function loadMatchList() {
+        if (!requireAdminKey()) return;
+        const out = document.getElementById('matchListOutput');
+        out.textContent = 'Завантаження...';
+        out.classList.remove('hidden');
+
+        try {
+            const { ok, data } = await adminRequest('/api/admin/list-matches', 'GET');
+
+            if (!ok || !data.ok) {
+                out.textContent = `Помилка: ${data.error || 'unknown'}`;
+                return;
+            }
+            if (!data.matches.length) {
+                out.textContent = 'Матчів не знайдено';
+                return;
+            }
+
+            const lines = data.matches.map(m => {
+                const score = (m.home_score != null && m.away_score != null)
+                    ? ` [${m.home_score}:${m.away_score}]` : '';
+                const settled = m.settlement_completed ? ' ✅' : '';
+                return `ID:${m.id} | ${formatDateTime(m.match_date)} | ${m.home_team} vs ${m.away_team}${score} | ${m.status}${settled} | ${m.competition || '—'}`;
+            });
+
+            out.textContent = `Всього: ${data.count} матчів\n${'─'.repeat(60)}\n` + lines.join('\n');
+        } catch (e) {
+            out.textContent = `Помилка: ${e.message}`;
+        }
+    }
+
+    // ── Видалення матчу ───────────────────────────────────────────────────
+    async function deleteMatch() {
+        if (!requireAdminKey()) return;
+        const matchId = Number(document.getElementById('manualMatchId').value);
+        const out = document.getElementById('manualStatusOutput');
+
+        if (!matchId) {
+            showResult('Вкажіть ID матчу для видалення', 'error');
+            return;
+        }
+
+        try {
+            // Спочатку перевіряємо матч
+            const checkRes = await adminRequest(`/api/admin/match-info?id=${matchId}`, 'GET');
+            if (!checkRes.ok || !checkRes.data.ok) {
+                showResult(`Матч #${matchId} не знайдено`, 'error');
+                return;
+            }
+
+            const match = checkRes.data.match;
+
+            if (!confirm(
+                `❗ Видалити матч?\n\n` +
+                `${match.home_team} vs ${match.away_team}\n` +
+                `${formatDateTime(match.match_date)}\n\n` +
+                `⚠️ ВСІ ставки на цей матч теж будуть видалені!\n` +
+                `Дія незворотна.`
+            )) return;
+
+            out.textContent = 'Видалення матчу...';
+            out.classList.remove('hidden');
+
+            const { ok, data } = await adminRequest('/api/admin/delete-match', 'POST', { matchId, force: true });
+
+            if (ok && data.ok) {
+                out.textContent =
+                    `✅ МАТЧ ВИДАЛЕНО\n\n` +
+                    `Матч: ${data.deleted.home_team} vs ${data.deleted.away_team}\n` +
+                    `Дата: ${formatDateTime(data.deleted.match_date)}\n` +
+                    `Видалено ставок: ${data.deletedBets}`;
+                showResult(`✅ Матч #${matchId} видалено (ставок: ${data.deletedBets})`, 'success');
+            } else {
+                out.textContent = `❌ Помилка: ${data.error || 'unknown'}`;
+                showResult(`Помилка: ${data.error}`, 'error');
+            }
+        } catch (e) {
+            out.textContent = `❌ Помилка: ${e.message}`;
+            showResult(`Помилка: ${e.message}`, 'error');
+        }
+    }
+
+    // ── Топ-5 прогнозистів за профітом ───────────────────────────────────
+    async function loadTopForecasters() {
+        if (!requireAdminKey()) return;
+        const period = document.getElementById('forecasterPeriod').value;
+        const box = document.getElementById('forecasterBox');
+
+        box.innerHTML = '<p class="text-gray-500 text-sm">Завантаження...</p>';
+
+        try {
+            const { ok, data } = await adminRequest(`/api/admin/top-forecasters?period=${period}`, 'GET');
+
+            if (!ok || !data.ok) {
+                box.innerHTML = `<p class="text-red-500 text-sm">Помилка: ${data.error || 'unknown'}</p>`;
+                return;
+            }
+
+            if (!data.top.length) {
+                box.innerHTML = '<p class="text-gray-500 text-sm">Немає даних за вказаний період</p>';
+                return;
+            }
+
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            const periodLabel = { month: 'Поточний місяць', week: 'Останній тиждень', all: 'Весь час' }[period];
+
+            const rows = data.top.map((p, i) => {
+                const bestBetLine = p.bestBet
+                    ? `💎 Найкраща: ${p.bestBet.selection} | Ставка: ${p.bestBet.stake} → +${p.bestBet.profit.toFixed(0)} (коеф. ${p.bestBet.odds})`
+                    : '—';
+                const profitColor = p.profit >= 0 ? 'text-green-700' : 'text-red-600';
+                return `
+                    <div class="border border-gray-200 rounded-lg p-2.5 text-xs">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-sm">${medals[i]} @${p.username}</span>
+                            <span class="font-bold ${profitColor} text-sm">${p.profit >= 0 ? '+' : ''}${p.profit.toFixed(0)} балів</span>
+                        </div>
+                        <div class="text-gray-500">
+                            Ставок: ${p.betsTotal} &nbsp;|&nbsp; Виграшів: ${p.betsWon} (${p.winRate}%)
+                            &nbsp;|&nbsp; Сума ставок: ${p.stakeTotal} → Виплати: ${p.payoutTotal}
+                        </div>
+                        <div class="text-gray-600 mt-1">${bestBetLine}</div>
+                    </div>
+                `;
+            }).join('');
+
+            box.innerHTML = `
+                <p class="text-xs text-gray-500 mb-2 font-semibold">${periodLabel} · Топ-${data.count} за чистим профітом</p>
+                <div class="space-y-1.5">${rows}</div>
+            `;
+        } catch (e) {
+            box.innerHTML = `<p class="text-red-500 text-sm">Помилка: ${e.message}</p>`;
+        }
+    }
+
     async function settleMatchFromDbScore() {
       const matchId = Number(document.getElementById('manualMatchId').value);
       const out = document.getElementById('manualStatusOutput');
@@ -1304,7 +1485,6 @@
 </script>
 </body>
 </html>
-
 
 
 
