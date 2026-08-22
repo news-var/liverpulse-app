@@ -64,7 +64,7 @@
         .rank-n  { background: #F5EDD8; color: #6B5460; }
 
         /* Nav active pill */
-        .nav-active  { background: #8B1A2E; color: #FFFFFF; border-radius: 12px; }
+        .nav-active  { background: #8B1A2E; color: #FFFFFF; border-radius: 8px; }
         .nav-inactive { color: #7B5C68; }
 
         button { -webkit-tap-highlight-color: transparent; }
@@ -383,7 +383,7 @@ function buildReferralText(inviteLink) {
 
 const LOGO_URL_LOAD   = 'https://news-var.github.io/liverpulse-app/icon/liver_load.png';
 const LOGO_URL_HEADER = 'https://news-var.github.io/liverpulse-app/icon/liver_head.png';
-const LOGO_SIZE_HEADER = "72px";
+const LOGO_SIZE_HEADER = "60px"; // ← змінюй цей розмір за потреби
 const LOGO_SIZE_LOAD   = "120px";
 
 
@@ -392,7 +392,7 @@ const LOGO_SIZE_LOAD   = "120px";
 // ==========================================
 function renderHeader() {
     return `
-        <div class="jersey-bg text-white px-4 py-2.5 sticky top-0 z-10 shadow-lg">
+        <div class="jersey-bg text-white px-4 py-2.5 sticky top-0 z-10 shadow-lg overflow-hidden">
             <div class="relative flex items-center">
                 <!-- Ліво: ніk + назва -->
                 <div class="flex flex-col">
@@ -599,13 +599,13 @@ function renderMatches() {
                                                 ${overDisabled ? 'disabled' : ''}
                                                 class="flex flex-col items-center justify-center ${
                                                     overDisabled
-                                                        ? 'bg-[#FFF0F3] border border-dashed border-[#F0C8D4] opacity-40 cursor-default'
-                                                        : 'bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95'
+                                                        ? 'bg-[#F0E8D8] border border-dashed border-[#D8C8A8] opacity-40 cursor-default'
+                                                        : 'bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95'
                                                 } rounded-lg py-1.5 px-1"
                                                 ${overDisabled ? '' : `onclick="openBet(${m.id}, 'Тотал', 'Б ${row.pt}', ${row.over})"`}
                                             >
                                                 <span class="text-[9px] text-[#7B5C68]">ТБ ${row.pt}</span>
-                                                <span class="font-bold text-xs ${overDisabled ? 'text-[#C0A0A8]' : 'text-[#8B1A2E]'}">
+                                                <span class="font-bold text-xs ${overDisabled ? 'text-[#B0A090]' : 'text-[#4A3040]'}">
                                                     ${row.over ?? '-'}
                                                 </span>
                                             </button>
@@ -828,9 +828,9 @@ function renderMatches() {
                     <!-- 1X2 -->
                     <div class="grid grid-cols-3 gap-1.5">
                         <button onclick="openBet(${m.id}, '1X2', 'П1', ${m.odds_home})"
-                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95 transition-colors">
+                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95 transition-colors">
                             <p class="text-[9px] text-[#7B5C68]">П1</p>
-                            <p class="font-bold text-xs text-[#8B1A2E]">${m.odds_home}</p>
+                            <p class="font-bold text-xs text-[#4A3040]">${m.odds_home}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'X', ${m.odds_draw})"
                             class="flex flex-col items-center rounded-lg p-1.5 bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95 transition-colors">
@@ -838,9 +838,9 @@ function renderMatches() {
                             <p class="font-bold text-xs text-[#4A3040]">${m.odds_draw}</p>
                         </button>
                         <button onclick="openBet(${m.id}, '1X2', 'П2', ${m.odds_away})"
-                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#FFF0F3] hover:bg-[#FFE4EC] border border-[#F0C8D4] active:scale-95 transition-colors">
+                            class="flex flex-col items-center rounded-lg p-1.5 bg-[#F5EDD8] hover:bg-[#EDE1C8] border border-[#D8C8A8] active:scale-95 transition-colors">
                             <p class="text-[9px] text-[#7B5C68]">П2</p>
-                            <p class="font-bold text-xs text-[#8B1A2E]">${m.odds_away}</p>
+                            <p class="font-bold text-xs text-[#4A3040]">${m.odds_away}</p>
                         </button>
                     </div>
                     ${doubleChanceRow}
@@ -1079,11 +1079,11 @@ function renderNav() {
     ];
 
     return `
-        <div class="fixed bottom-0 left-0 right-0 bg-[#FBF7EF] border-t border-[#E4D5BA] px-2 py-1.5 safe-bottom z-10">
-            <div class="grid grid-cols-4 gap-1">
+        <div class="fixed bottom-0 left-0 right-0 bg-[#FBF7EF] border-t border-[#E4D5BA] px-1 py-1 safe-bottom z-10">
+            <div class="grid grid-cols-4 gap-0.5">
                 ${pages.map(p => `
                     <button onclick="changePage('${p.id}')"
-                        class="flex flex-col items-center py-1.5 px-1 rounded-xl active:scale-95 transition-colors ${
+                        class="flex flex-col items-center py-1.5 px-0.5 rounded-lg active:scale-95 transition-colors ${
                             state.currentPage === p.id ? 'nav-active' : 'nav-inactive'
                         }">
                         <span class="text-xl mb-0.5">${p.icon}</span>
@@ -1277,7 +1277,7 @@ function render() {
                     <p class="text-[10px] opacity-70 uppercase tracking-widest">Ваш баланс</p>
                     <p class="text-2xl font-bold leading-tight">${state.user.points} <span class="text-sm font-normal opacity-70">балів</span></p>
                 </div>
-                <div class="text-3xl opacity-90">⚽</div>
+                <div class="text-3xl opacity-90">🏆</div>
             </div>
 
             <div class="lp-heading">${headingText}</div>
