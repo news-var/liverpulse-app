@@ -17,6 +17,14 @@
         /* Ховаємо скролбар щоб не з'їдав ширину хедера */
         ::-webkit-scrollbar { display: none; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
+
+        :root { --app-vw: 100vw; }
+        .app-header {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: var(--app-vw) !important;
+        }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -102,8 +110,15 @@ if (tg && CONFIG.USE_TELEGRAM) {
 }
 
 // ==========================================
-// СТАН
+// СИНХРОНІЗАЦІЯ ШИРИНИ ХЕДЕРА
 // ==========================================
+function syncHeaderWidth() {
+    const w = (tg?.viewportWidth > 0 ? tg.viewportWidth : window.innerWidth);
+    document.documentElement.style.setProperty('--app-vw', w + 'px');
+}
+syncHeaderWidth();
+if (tg) tg.onEvent('viewportChanged', syncHeaderWidth);
+window.addEventListener('resize', syncHeaderWidth);
 const state = {
     user: null,
     matches: [],
@@ -395,7 +410,7 @@ const LOGO_SIZE_LOAD   = "120px";
 // ==========================================
 function renderHeader() {
     return `
-        <div class="jersey-bg text-white px-4 py-2.5 fixed top-0 left-0 z-10 shadow-lg overflow-hidden" style="width:100vw;">
+        <div class="app-header jersey-bg text-white px-4 py-2.5 z-10 shadow-lg overflow-hidden">
             <div class="relative flex items-center">
                 <!-- Ліво: ніk + назва -->
                 <div class="flex flex-col">
