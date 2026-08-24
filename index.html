@@ -14,6 +14,9 @@
             -webkit-tap-highlight-color: transparent;
             background-color: #F5EDD8;
         }
+        /* Ховаємо скролбар щоб не з'їдав ширину хедера */
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -392,7 +395,7 @@ const LOGO_SIZE_LOAD   = "120px";
 // ==========================================
 function renderHeader() {
     return `
-        <div class="jersey-bg text-white px-4 py-2.5 fixed top-0 left-0 right-0 z-10 shadow-lg overflow-hidden">
+        <div class="jersey-bg text-white px-4 py-2.5 fixed top-0 left-0 z-10 shadow-lg overflow-hidden" style="width:100vw;">
             <div class="relative flex items-center">
                 <!-- Ліво: ніk + назва -->
                 <div class="flex flex-col">
